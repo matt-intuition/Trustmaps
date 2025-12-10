@@ -1,9 +1,10 @@
 import AdmZip from 'adm-zip';
-import { parse } from 'csv-parse/sync';
+import { parse } from 'csv-parse';
 import { prisma } from '../../config/database';
 import { geocodeService } from './geocode';
 import fs from 'fs';
 import path from 'path';
+import { promisify } from 'util';
 
 interface RawPlace {
   name: string;
@@ -94,9 +95,16 @@ export async function processZip(
     for (const csvEntry of csvEntries) {
       try {
         const csvData = csvEntry.getData().toString('utf8');
-        const records = parse(csvData, {
-          columns: true,
-          skip_empty_lines: true,
+
+        // Use async parse with promise
+        const records: any[] = await new Promise((resolve, reject) => {
+          parse(csvData, {
+            columns: true,
+            skip_empty_lines: true,
+          }, (err, records) => {
+            if (err) reject(err);
+            else resolve(records);
+          });
         });
 
         for (const record of records) {

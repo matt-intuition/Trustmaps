@@ -14,6 +14,31 @@ export default function ImportScreen() {
   const [isUploading, setIsUploading] = useState(false);
 
   const handleFilePick = async () => {
+    console.log('handleFilePick called');
+
+    // For web, use native file input
+    if (Platform.OS === 'web') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.zip,application/zip';
+      input.onchange = (e: any) => {
+        const file = e.target?.files?.[0];
+        if (file) {
+          console.log('File selected:', file.name, file.size);
+          setSelectedFile({
+            uri: URL.createObjectURL(file),
+            name: file.name,
+            size: file.size,
+            mimeType: file.type,
+            file: file, // Store the actual File object for upload
+          } as any);
+        }
+      };
+      input.click();
+      return;
+    }
+
+    // For native mobile
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/zip',
@@ -26,6 +51,7 @@ export default function ImportScreen() {
 
       if (result.assets && result.assets.length > 0) {
         const file = result.assets[0];
+        console.log('Mobile file selected:', file);
         setSelectedFile(file);
       }
     } catch (error) {
@@ -35,6 +61,8 @@ export default function ImportScreen() {
   };
 
   const handleUpload = async () => {
+    console.log('handleUpload called', selectedFile);
+
     if (!selectedFile) {
       Alert.alert('Error', 'Please select a file first');
       return;
@@ -43,8 +71,20 @@ export default function ImportScreen() {
     setIsUploading(true);
 
     try {
-      // Upload file to backend
-      const result = await apiClient.uploadZip(selectedFile.uri, selectedFile.name);
+      console.log('Starting upload...');
+
+      // For web, use the actual File object
+      let result;
+      if (Platform.OS === 'web' && (selectedFile as any).file) {
+        console.log('Uploading web file:', selectedFile.name);
+        result = await apiClient.uploadZip((selectedFile as any).file, selectedFile.name);
+      } else {
+        // For mobile, use URI
+        console.log('Uploading mobile file:', selectedFile.uri);
+        result = await apiClient.uploadZip(selectedFile.uri, selectedFile.name);
+      }
+
+      console.log('Upload result:', result);
 
       // Navigate to success screen with results
       router.push({

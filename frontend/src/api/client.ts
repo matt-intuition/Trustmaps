@@ -72,25 +72,37 @@ class ApiClient {
   }
 
   // Import endpoints
-  async uploadZip(fileUri: string, fileName: string): Promise<{
+  async uploadZip(fileOrUri: string | File, fileName: string): Promise<{
     message: string;
     listsCreated: number;
     placesImported: number;
     warnings?: string[];
   }> {
+    console.log('uploadZip called', typeof fileOrUri, fileName);
+
     const formData = new FormData();
 
-    // For React Native, we need to append the file as an object with uri, name, and type
-    formData.append('file', {
-      uri: fileUri,
-      name: fileName,
-      type: 'application/zip',
-    } as any);
+    // Handle both web File objects and mobile URIs
+    if (fileOrUri instanceof File) {
+      // Web: use the File object directly
+      console.log('Appending web File object');
+      formData.append('file', fileOrUri, fileName);
+    } else {
+      // React Native: append with uri, name, and type
+      console.log('Appending React Native file with URI');
+      formData.append('file', {
+        uri: fileOrUri,
+        name: fileName,
+        type: 'application/zip',
+      } as any);
+    }
 
     const headers: HeadersInit = {};
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
+
+    console.log('Uploading to', `${API_URL}/import/upload`);
 
     const response = await fetch(`${API_URL}/import/upload`, {
       method: 'POST',
@@ -98,7 +110,10 @@ class ApiClient {
       body: formData,
     });
 
+    console.log('Response status:', response.status);
+
     const data = await response.json();
+    console.log('Response data:', data);
 
     if (!response.ok) {
       throw new Error(data.message || data.error || 'Upload failed');
