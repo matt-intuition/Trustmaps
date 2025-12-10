@@ -2,9 +2,8 @@ import { Strategy as JwtStrategy, ExtractJwt, StrategyOptions } from 'passport-j
 import { Strategy as LocalStrategy } from 'passport-local';
 import { PassportStatic } from 'passport';
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../config/database';
 
-const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
 
 // JWT Strategy Options

@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import passport from 'passport';
 import authRoutes from './api/routes/auth';
+import importRoutes from './api/routes/import';
 import { initializePassport } from './api/auth/passport';
 
 // Load environment variables
@@ -27,6 +28,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/import', importRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
