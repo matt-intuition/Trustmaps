@@ -44,30 +44,32 @@ export async function processZip(
     const zip = new AdmZip(zipFilePath);
     const zipEntries = zip.getEntries();
 
-    // Find Saved Places JSON (usually in Takeout/Maps/My Places/Saved Places.json)
-    const savedPlacesEntry = zipEntries.find(
-      (entry) => entry.entryName.includes('Saved Places.json') && !entry.isDirectory
+    // Find Labeled Places JSON (Google Takeout format: Takeout/Maps/My labeled places/Labeled places.json)
+    const labeledPlacesEntry = zipEntries.find(
+      (entry) => entry.entryName.includes('Labeled places.json') && !entry.isDirectory
     );
 
-    if (!savedPlacesEntry) {
-      errors.push('No "Saved Places.json" found in ZIP file');
+    if (!labeledPlacesEntry) {
+      errors.push('No "Labeled places.json" found in ZIP file');
+      console.log('Available files:', zipEntries.map(e => e.entryName));
       return { success: false, listsCreated, placesImported, errors };
     }
 
-    // Parse Saved Places JSON
-    const savedPlacesData = savedPlacesEntry.getData().toString('utf8');
-    const savedPlaces = JSON.parse(savedPlacesData);
+    // Parse Labeled Places JSON
+    const labeledPlacesData = labeledPlacesEntry.getData().toString('utf8');
+    const labeledPlaces = JSON.parse(labeledPlacesData);
 
     // Extract features (places) from GeoJSON
     const places: RawPlace[] = [];
 
-    if (savedPlaces.features && Array.isArray(savedPlaces.features)) {
-      for (const feature of savedPlaces.features) {
+    if (labeledPlaces.features && Array.isArray(labeledPlaces.features)) {
+      for (const feature of labeledPlaces.features) {
         const props = feature.properties || {};
         const geom = feature.geometry || {};
 
         const place: RawPlace = {
           name: props.name || props.Title || 'Unnamed Place',
+          address: props.address,
           googlePlaceId: props['Google Maps URL']?.split('/').pop(),
           category: props.Location?.['Business Status'] || 'general',
         };

@@ -14,7 +14,13 @@ router.use(passport.authenticate('jwt', { session: false }));
  */
 router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
   try {
+    console.log('Upload request received');
+    console.log('Body:', req.body);
+    console.log('File:', req.file);
+    console.log('User:', (req.user as any)?.id);
+
     if (!req.file) {
+      console.error('No file in request');
       return res.status(400).json({
         error: 'No file uploaded',
         message: 'Please upload a ZIP file',
@@ -23,8 +29,10 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 
     const userId = (req.user as any).id;
 
+    console.log('Processing ZIP file:', req.file.path);
     // Process ZIP file asynchronously
     const result = await processZip(req.file.path, userId);
+    console.log('Process result:', result);
 
     if (result.success) {
       return res.json({

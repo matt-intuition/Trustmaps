@@ -29,7 +29,12 @@ export default function HomeScreen() {
 
         {/* Stats Cards - Clean, flat design with accent.500 icons */}
         <View style={styles.statsContainer}>
-          <Card variant="elevated" padding={4} style={styles.statCard}>
+          <Card
+            variant="interactive"
+            padding={4}
+            style={styles.statCard}
+            onPress={() => router.push('/library')}
+          >
             <Ionicons name="map" size={24} color={colors.accent[500]} />
             <Text style={styles.statValue}>{user?._count?.createdLists || 0}</Text>
             <Text style={styles.statLabel}>My Lists</Text>
