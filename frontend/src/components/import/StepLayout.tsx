@@ -1,5 +1,7 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Button } from '../common/Button';
 import { StepIndicator } from './StepIndicator';
 import { colors, spacing, textStyles } from '../../utils/theme';
@@ -27,9 +29,20 @@ export function StepLayout({
   onBack,
   nextButtonText = 'Next',
 }: StepLayoutProps) {
+  const router = useRouter();
+
+  const handleExit = () => {
+    router.push('/import');
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StepIndicator currentStep={stepNumber} totalSteps={totalSteps} />
+      <View style={styles.header}>
+        <StepIndicator currentStep={stepNumber} totalSteps={totalSteps} />
+        <Pressable onPress={handleExit} style={styles.closeButton}>
+          <Ionicons name="close" size={24} color={colors.neutral[600]} />
+        </Pressable>
+      </View>
 
       <ScrollView
         style={styles.content}
@@ -41,17 +54,19 @@ export function StepLayout({
 
       <View style={styles.actions}>
         {onBack && (
-          <Button variant="ghost" onPress={onBack} style={styles.backButton}>
-            Back
-          </Button>
+          <Button
+            title="Back"
+            variant="ghost"
+            onPress={onBack}
+            style={styles.backButton}
+          />
         )}
         <Button
+          title={nextButtonText}
           variant="primary"
           onPress={onNext}
           style={styles.nextButton}
-        >
-          {nextButtonText}
-        </Button>
+        />
       </View>
     </SafeAreaView>
   );
@@ -61,6 +76,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  header: {
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: spacing[6],
+    right: spacing[6],
+    padding: spacing[2],
+    zIndex: 10,
   },
   content: {
     flex: 1,

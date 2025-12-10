@@ -96,21 +96,18 @@ export default function ImportGettingStartedScreen() {
         {/* Action buttons */}
         <View style={styles.actions}>
           <Button
+            title="Start Guided Setup"
             variant="primary"
             onPress={() => router.push('/import/step-1')}
-            leftIcon="compass-outline"
             size="lg"
-          >
-            Start Guided Setup
-          </Button>
+          />
 
           <Button
+            title="Skip to Upload"
             variant="ghost"
             onPress={() => router.push('/import/upload')}
             size="base"
-          >
-            Skip to Upload
-          </Button>
+          />
         </View>
 
         {/* Time estimate */}
