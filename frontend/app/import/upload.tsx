@@ -14,7 +14,7 @@ export default function ImportScreen() {
   const [isUploading, setIsUploading] = useState(false);
 
   const handleBack = () => {
-    router.back();
+    router.push('/import');
   };
 
   const handleFilePick = async () => {
