@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, Platform, Alert, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
@@ -12,6 +12,10 @@ export default function ImportScreen() {
   const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  const handleBack = () => {
+    router.back();
+  };
 
   const handleFilePick = async () => {
     console.log('handleFilePick called');
@@ -105,6 +109,14 @@ export default function ImportScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Back button */}
+      <View style={styles.topBar}>
+        <Pressable onPress={handleBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.neutral[700]} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </Pressable>
+      </View>
+
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -190,6 +202,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  topBar: {
+    paddingHorizontal: spacing[6],
+    paddingVertical: spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingVertical: spacing[2],
+  },
+  backButtonText: {
+    ...textStyles.body,
+    color: colors.neutral[700],
+    fontWeight: '500',
   },
   content: {
     flex: 1,
