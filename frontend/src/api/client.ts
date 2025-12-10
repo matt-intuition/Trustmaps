@@ -52,6 +52,10 @@ class ApiClient {
     await AsyncStorage.removeItem(TOKEN_KEY);
   }
 
+  getToken(): string | null {
+    return this.token;
+  }
+
   // Auth endpoints
   async signup(data: SignupRequest): Promise<AuthResponse> {
     return this.request<AuthResponse>('/auth/signup', {
