@@ -1,5 +1,5 @@
 import AdmZip from 'adm-zip';
-import { parse } from 'csv-parse';
+import { parse } from 'csv-parse/sync';
 import { prisma } from '../../config/database';
 import { geocodeService } from './geocode';
 import fs from 'fs';

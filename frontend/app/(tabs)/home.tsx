@@ -1,12 +1,14 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../src/stores/authStore';
 import { colors, typography, spacing, borderRadius, shadows, textStyles } from '../../src/utils/theme';
 import { Card } from '../../src/components/common/Card';
 import { Badge } from '../../src/components/common/Badge';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const { user } = useAuthStore();
 
   return (
@@ -50,7 +52,12 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
 
-          <Card variant="interactive" padding={5} style={styles.actionCard}>
+          <Card
+            variant="interactive"
+            padding={5}
+            style={styles.actionCard}
+            onPress={() => router.push('/import')}
+          >
             <View style={styles.actionIconContainer}>
               <Ionicons name="cloud-upload-outline" size={32} color={colors.accent[500]} />
             </View>
@@ -63,7 +70,12 @@ export default function HomeScreen() {
             <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
           </Card>
 
-          <Card variant="interactive" padding={5} style={styles.actionCard}>
+          <Card
+            variant="interactive"
+            padding={5}
+            style={styles.actionCard}
+            onPress={() => router.push('/(tabs)/marketplace')}
+          >
             <View style={styles.actionIconContainer}>
               <Ionicons name="compass-outline" size={32} color={colors.accent[500]} />
             </View>
