@@ -2,9 +2,9 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, textStyles, borderRadius } from '../../src/utils/theme';
-import Input from '../../src/components/common/Input';
-import Card from '../../src/components/common/Card';
-import Badge from '../../src/components/common/Badge';
+import { Input } from '../../src/components/common/Input';
+import { Card } from '../../src/components/common/Card';
+import { Badge } from '../../src/components/common/Badge';
 import { useState } from 'react';
 
 // Mock data for marketplace lists
