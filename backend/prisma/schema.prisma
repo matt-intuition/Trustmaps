@@ -1,0 +1,196 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String      @id @default(uuid())
+  email              String      @unique
+  username           String      @unique
+  password           String // hashed with bcrypt
+  displayName        String
+  bio                String?
+  profileImage       String?
+  trustBalance       Int         @default(100) // simulated TRUST tokens
+  creatorReputation  Float       @default(0) // calculated
+  totalStaked        Int         @default(0)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  // Relations
+  createdLists       List[]      @relation("CreatedLists")
+  purchases          Purchase[]
+  stakes             Stake[]
+  stakesOnCreators   UserStake[] @relation("Staker")
+  stakesReceived     UserStake[] @relation("Creator")
+  reviews            Review[]
+
+  @@index([email])
+  @@index([username])
+  @@index([creatorReputation])
+  @@map("users")
+}
+
+model Place {
+  id             String      @id @default(uuid())
+  googlePlaceId  String?     @unique
+  name           String
+  address        String
+  latitude       Float
+  longitude      Float
+  city           String?
+  country        String?
+  category       String?     // restaurant, bar, cafe, etc.
+  cuisine        String?
+  rating         Float?
+  priceLevel     Int?        // 1-4
+  photoUrl       String?
+  createdAt      DateTime    @default(now())
+
+  // Relations
+  listPlaces     ListPlace[]
+
+  @@index([city])
+  @@index([category])
+  @@index([latitude, longitude])
+  @@map("places")
+}
+
+model List {
+  id              String      @id @default(uuid())
+  creatorId       String
+  title           String
+  description     String?
+  coverImage      String?
+  city            String?
+  tags            String[]    @default([])
+  isPublic        Boolean     @default(false)
+  isPaid          Boolean     @default(false)
+  price           Float       @default(0) // 0 if free
+  placeCount      Int         @default(0)
+  trustRank       Float       @default(0) // calculated
+  totalStaked     Int         @default(0)
+  totalSales      Int         @default(0)
+  totalEarnings   Float       @default(0)
+  averageRating   Float?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  creator         User        @relation("CreatedLists", fields: [creatorId], references: [id], onDelete: Cascade)
+  places          ListPlace[]
+  purchases       Purchase[]
+  stakes          Stake[]
+  reviews         Review[]
+
+  @@index([creatorId])
+  @@index([isPublic])
+  @@index([isPaid])
+  @@index([city])
+  @@index([trustRank])
+  @@index([createdAt])
+  @@map("lists")
+}
+
+model ListPlace {
+  id         String   @id @default(uuid())
+  listId     String
+  placeId    String
+  order      Int
+  notes      String?  // creator's notes about this place
+  customTags String[] @default([])
+  createdAt  DateTime @default(now())
+
+  // Relations
+  list       List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  place      Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, placeId])
+  @@index([listId])
+  @@index([placeId])
+  @@map("list_places")
+}
+
+model Purchase {
+  id                 String   @id @default(uuid())
+  userId             String
+  listId             String
+  price              Float
+  revenueToCreator   Float
+  revenueToStakers   Float
+  revenueToProtocol  Float
+  createdAt          DateTime @default(now())
+
+  // Relations
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list               List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listId]) // User can only purchase a list once
+  @@index([userId])
+  @@index([listId])
+  @@index([createdAt])
+  @@map("purchases")
+}
+
+model Stake {
+  id             String   @id @default(uuid())
+  userId         String
+  listId         String
+  amount         Int      // TRUST tokens
+  earnedRevenue  Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list           List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listId]) // User can only have one stake per list
+  @@index([userId])
+  @@index([listId])
+  @@map("stakes")
+}
+
+model UserStake {
+  id         String   @id @default(uuid())
+  stakerId   String
+  creatorId  String
+  amount     Int      // TRUST tokens
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  staker     User     @relation("Staker", fields: [stakerId], references: [id], onDelete: Cascade)
+  creator    User     @relation("Creator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([stakerId, creatorId]) // User can only stake on a creator once
+  @@index([stakerId])
+  @@index([creatorId])
+  @@map("user_stakes")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  listId    String
+  rating    Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list      List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listId]) // User can only review a list once
+  @@index([userId])
+  @@index([listId])
+  @@index([rating])
+  @@map("reviews")
+}
