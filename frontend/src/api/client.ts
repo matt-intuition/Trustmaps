@@ -77,10 +77,8 @@ class ApiClient {
 
   // Import endpoints
   async uploadZip(fileOrUri: string | File, fileName: string): Promise<{
+    jobId: string;
     message: string;
-    listsCreated: number;
-    placesImported: number;
-    warnings?: string[];
   }> {
     console.log('uploadZip called', typeof fileOrUri, fileName);
 
