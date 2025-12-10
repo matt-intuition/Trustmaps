@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -9,8 +9,20 @@ import { colors, spacing, textStyles, borderRadius } from '../../src/utils/theme
 export default function ImportGettingStartedScreen() {
   const router = useRouter();
 
+  const handleBack = () => {
+    router.push('/library');
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Back button */}
+      <View style={styles.topBar}>
+        <Pressable onPress={handleBack} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.neutral[700]} />
+          <Text style={styles.backButtonText}>Back to Library</Text>
+        </Pressable>
+      </View>
+
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -126,6 +138,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  topBar: {
+    paddingHorizontal: spacing[6],
+    paddingVertical: spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200],
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingVertical: spacing[2],
+  },
+  backButtonText: {
+    ...textStyles.body,
+    color: colors.neutral[700],
+    fontWeight: '500',
   },
   content: {
     flex: 1,
