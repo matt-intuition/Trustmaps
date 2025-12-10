@@ -1,20 +1,28 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
 import { Button } from '../../src/components/common/Button';
 import { Badge } from '../../src/components/common/Badge';
 import { colors, typography, spacing, textStyles, borderRadius } from '../../src/utils/theme';
+import { useAuthStore } from '../../src/stores/authStore';
 
 export default function SuccessScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const { loadUser } = useAuthStore();
 
-  // TODO: Get actual import results from route params or state
+  // Get actual import results from route params
   const importResults = {
-    listsCreated: 1,
-    placesImported: 47,
-    errors: [],
+    listsCreated: parseInt(params.listsCreated as string) || 0,
+    placesImported: parseInt(params.placesImported as string) || 0,
   };
+
+  // Reload user data to update list count
+  useEffect(() => {
+    loadUser();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

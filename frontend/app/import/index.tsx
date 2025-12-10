@@ -6,6 +6,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/common/Button';
 import { colors, typography, spacing, textStyles, borderRadius } from '../../src/utils/theme';
+import { apiClient } from '../../src/api/client';
 
 export default function ImportScreen() {
   const router = useRouter();
@@ -42,13 +43,23 @@ export default function ImportScreen() {
     setIsUploading(true);
 
     try {
-      // TODO: Upload file to backend /api/import/upload
-      // For now, just navigate to processing screen
-      router.push('/import/processing');
+      // Upload file to backend
+      const result = await apiClient.uploadZip(selectedFile.uri, selectedFile.name);
+
+      // Navigate to success screen with results
+      router.push({
+        pathname: '/import/success',
+        params: {
+          listsCreated: result.listsCreated.toString(),
+          placesImported: result.placesImported.toString(),
+        },
+      });
     } catch (error) {
       console.error('Upload error:', error);
-      Alert.alert('Error', 'Failed to upload file');
-    } finally {
+      Alert.alert(
+        'Import Failed',
+        error instanceof Error ? error.message : 'Failed to upload file'
+      );
       setIsUploading(false);
     }
   };

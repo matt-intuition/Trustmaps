@@ -70,6 +70,42 @@ class ApiClient {
   async getMe(): Promise<{ user: User }> {
     return this.request<{ user: User }>('/auth/me');
   }
+
+  // Import endpoints
+  async uploadZip(fileUri: string, fileName: string): Promise<{
+    message: string;
+    listsCreated: number;
+    placesImported: number;
+    warnings?: string[];
+  }> {
+    const formData = new FormData();
+
+    // For React Native, we need to append the file as an object with uri, name, and type
+    formData.append('file', {
+      uri: fileUri,
+      name: fileName,
+      type: 'application/zip',
+    } as any);
+
+    const headers: HeadersInit = {};
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(`${API_URL}/import/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || data.error || 'Upload failed');
+    }
+
+    return data;
+  }
 }
 
 export const apiClient = new ApiClient();
