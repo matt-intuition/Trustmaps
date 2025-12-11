@@ -359,10 +359,12 @@ router.get('/:id', async (req: Request, res: Response) => {
       },
     });
 
-    // For paid lists without access, show only 1 preview place
+    // For paid lists without access, show only 3 preview places
+    const totalPlaces = list.places.length;
+    const previewPlaces = 3;
     let places = list.places;
     if (!hasAccess && !list.isFree) {
-      places = list.places.slice(0, 1);
+      places = list.places.slice(0, previewPlaces);
     }
 
     res.json({

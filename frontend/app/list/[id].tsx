@@ -17,6 +17,7 @@ import { ReviewForm } from '../../src/components/reviews/ReviewForm';
 import { ReviewCard } from '../../src/components/reviews/ReviewCard';
 import { StarRating } from '../../src/components/common/StarRating';
 import { MapViewComponent, MapMarker } from '../../src/components/common/MapView';
+import { BlurredPlaceCard } from '../../src/components/places/BlurredPlaceCard';
 
 type TabType = 'overview' | 'places' | 'reviews' | 'map';
 
@@ -399,23 +400,34 @@ export default function ListDetailScreen() {
           </Pressable>
         ))}
 
+        {/* Blurred placeholders for locked places */}
         {showLock && meta.totalPlaces > meta.previewPlaces && (
-          <View style={styles.lockOverlay}>
-            <Ionicons name="lock-closed" size={64} color={colors.neutral[400]} />
-            <Text style={styles.lockTitle}>
-              {meta.totalPlaces - meta.previewPlaces} more places locked
-            </Text>
-            <Text style={styles.lockDescription}>
-              Purchase this list for {list.price} TRUST tokens to unlock all places
-            </Text>
-            <Button
-              title={`Purchase for ${list.price} TRUST`}
-              onPress={handlePurchase}
-              variant="primary"
-              loading={actionLoading}
-              icon={<Ionicons name="cart" size={20} color={colors.surface} />}
-            />
-          </View>
+          <>
+            {Array.from({ length: Math.min(meta.totalPlaces - meta.previewPlaces, 5) }).map((_, index) => (
+              <BlurredPlaceCard key={`blurred-${index}`} index={meta.previewPlaces + index + 1} />
+            ))}
+
+            {/* Unlock CTA */}
+            <View style={styles.unlockCTA}>
+              <View style={styles.unlockContent}>
+                <Ionicons name="lock-closed" size={48} color={colors.neutral[400]} />
+                <Text style={styles.unlockTitle}>
+                  Unlock {meta.totalPlaces - meta.previewPlaces} more {meta.totalPlaces - meta.previewPlaces === 1 ? 'place' : 'places'}
+                </Text>
+                <Text style={styles.unlockDescription}>
+                  Get full access to all locations in this list
+                </Text>
+                <Button
+                  title={`Purchase for ${list.price} TRUST`}
+                  onPress={handlePurchase}
+                  variant="primary"
+                  loading={actionLoading}
+                  icon={<Ionicons name="cart" size={20} color={colors.surface} />}
+                  style={styles.unlockButton}
+                />
+              </View>
+            </View>
+          </>
         )}
       </View>
     );
@@ -906,27 +918,36 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.xs,
     color: colors.accent[500],
   },
-  lockOverlay: {
-    alignItems: 'center',
-    padding: spacing[8],
-    backgroundColor: colors.neutral[50],
-    borderRadius: borderRadius.md,
-    marginTop: spacing[4],
+  unlockCTA: {
+    marginTop: spacing[6],
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
+    paddingTop: spacing[6],
   },
-  lockTitle: {
+  unlockContent: {
+    alignItems: 'center',
+    padding: spacing[6],
+    backgroundColor: colors.accent[50],
+    borderRadius: borderRadius.lg,
+  },
+  unlockTitle: {
     fontFamily: typography.fonts.semibold,
     fontSize: typography.sizes.lg,
     color: colors.text.primary,
-    marginTop: spacing[4],
+    marginTop: spacing[3],
     marginBottom: spacing[2],
+    textAlign: 'center',
   },
-  lockDescription: {
+  unlockDescription: {
     fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.base,
     color: colors.text.secondary,
     textAlign: 'center',
     marginBottom: spacing[4],
     maxWidth: 300,
+  },
+  unlockButton: {
+    minWidth: 200,
   },
   emptyState: {
     alignItems: 'center',
