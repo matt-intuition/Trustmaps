@@ -89,7 +89,10 @@ export default function ProfileScreen() {
 
         {/* Menu Items - Flat cards, no shadows */}
         <View style={styles.menuSection}>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/(tabs)/library')}
+          >
             <Ionicons name="map-outline" size={20} color={colors.neutral[600]} />
             <View style={styles.menuContent}>
               <Text style={styles.menuTitle}>My Lists</Text>

@@ -13,6 +13,7 @@ interface AuthStore {
   login: (data: LoginRequest) => Promise<void>;
   logout: () => Promise<void>;
   loadUser: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -66,6 +67,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
     } catch (error) {
       await apiClient.clearToken();
       set({ user: null, isAuthenticated: false, isLoading: false });
+    }
+  },
+
+  refreshUser: async () => {
+    try {
+      const response = await apiClient.getMe();
+      set({ user: response.user });
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
     }
   },
 

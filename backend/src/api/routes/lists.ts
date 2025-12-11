@@ -32,7 +32,13 @@ router.get('/', async (req: Request, res: Response) => {
       },
     });
 
-    res.json({ lists });
+    // Transform data to match frontend interface
+    const transformedLists = lists.map((list) => ({
+      ...list,
+      placeCount: list._count.places,
+    }));
+
+    res.json({ lists: transformedLists });
   } catch (error) {
     console.error('Error fetching lists:', error);
     res.status(500).json({
@@ -51,6 +57,7 @@ router.get('/marketplace', async (req: Request, res: Response) => {
     const {
       category,
       search,
+      isFree,
       page = '1',
       limit = '20',
       sortBy = 'trustRank', // trustRank, price, newest, popular
@@ -68,6 +75,11 @@ router.get('/marketplace', async (req: Request, res: Response) => {
     // Category filter
     if (category && category !== 'All') {
       where.category = category;
+    }
+
+    // Price filter (isFree parameter)
+    if (isFree !== undefined) {
+      where.isFree = isFree === 'true';
     }
 
     // Search filter (title, city, description)
@@ -207,7 +219,11 @@ router.get('/saved', async (req: Request, res: Response) => {
       },
     });
 
-    const lists = savedLists.map((saved) => saved.list);
+    // Transform data to match frontend interface
+    const lists = savedLists.map((saved) => ({
+      ...saved.list,
+      placeCount: saved.list._count.places,
+    }));
     res.json({ lists });
   } catch (error) {
     console.error('Error fetching saved lists:', error);
@@ -254,7 +270,11 @@ router.get('/purchased', async (req: Request, res: Response) => {
       },
     });
 
-    const lists = purchases.map((purchase) => purchase.list);
+    // Transform data to match frontend interface
+    const lists = purchases.map((purchase) => ({
+      ...purchase.list,
+      placeCount: purchase.list._count.places,
+    }));
     res.json({ lists });
   } catch (error) {
     console.error('Error fetching purchased lists:', error);

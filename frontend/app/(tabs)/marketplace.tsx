@@ -10,11 +10,13 @@ import { useRouter } from 'expo-router';
 import { apiClient } from '../../src/api/client';
 
 const CATEGORIES = ['All', 'Food & Drink', 'Travel', 'Nightlife', 'Shopping', 'Culture'];
+const PRICE_FILTERS = ['All Prices', 'Free Only', 'Paid Only'];
 
 export default function MarketplaceScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedPriceFilter, setSelectedPriceFilter] = useState('All Prices');
   const [lists, setLists] = useState<MarketplaceList[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,6 +38,8 @@ export default function MarketplaceScreen() {
         limit: '20',
         ...(selectedCategory !== 'All' && { category: selectedCategory }),
         ...(searchQuery && { search: searchQuery }),
+        ...(selectedPriceFilter === 'Free Only' && { isFree: 'true' }),
+        ...(selectedPriceFilter === 'Paid Only' && { isFree: 'false' }),
       });
 
       const response = await fetch(
@@ -73,7 +77,7 @@ export default function MarketplaceScreen() {
   // Initial load
   useEffect(() => {
     fetchLists(1);
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, selectedPriceFilter]);
 
   // Refresh handler
   const handleRefresh = () => {
@@ -90,9 +94,7 @@ export default function MarketplaceScreen() {
 
   // Handle list press
   const handleListPress = (listId: string) => {
-    // TODO: Navigate to list detail screen
-    console.log('View list:', listId);
-    // router.push(`/list/${listId}`);
+    router.push(`/list/${listId}` as any);
   };
 
   // Render empty state
@@ -165,6 +167,27 @@ export default function MarketplaceScreen() {
         ))}
       </ScrollView>
 
+      {/* Price Filters */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.priceFiltersContainer}
+        contentContainerStyle={styles.categoriesContent}
+      >
+        {PRICE_FILTERS.map((filter) => (
+          <Pressable
+            key={filter}
+            onPress={() => setSelectedPriceFilter(filter)}
+            style={styles.categoryButton}
+          >
+            <Badge
+              label={filter}
+              variant={selectedPriceFilter === filter ? 'success' : 'neutral'}
+            />
+          </Pressable>
+        ))}
+      </ScrollView>
+
       {/* Lists */}
       {loading && page === 1 ? (
         <View style={styles.loadingContainer}>
@@ -211,6 +234,10 @@ const styles = StyleSheet.create({
   },
   categoriesContainer: {
     marginTop: spacing[6],
+    paddingLeft: spacing[6],
+  },
+  priceFiltersContainer: {
+    marginTop: spacing[3],
     paddingLeft: spacing[6],
   },
   categoriesContent: {

@@ -16,7 +16,8 @@ export interface MarketplaceList {
   description?: string | null;
   city?: string | null;
   category?: string | null;
-  price: number;
+  isFree: boolean;
+  price?: number | null;
   placeCount: number;
   trustRank: number;
   totalStaked: number;
@@ -131,10 +132,14 @@ export function MarketplaceListCard({ list, onPress }: MarketplaceListCardProps)
 
         {/* Price & Rating Row */}
         <View style={styles.priceRow}>
-          <Badge
-            label={`${list.price} TRUST`}
-            variant="accent"
-          />
+          {list.isFree ? (
+            <Badge label="FREE" variant="success" />
+          ) : (
+            <Badge
+              label={`${list.price || 0} TRUST`}
+              variant="accent"
+            />
+          )}
           {list.averageRating !== undefined && list.averageRating !== null && (
             <Badge
               variant="rating"

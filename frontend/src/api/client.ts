@@ -10,15 +10,44 @@ const TOKEN_KEY = '@trustmaps:token';
 
 class ApiClient {
   private token: string | null = null;
+  private initialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
 
   async init() {
+    if (this.initialized) {
+      return;
+    }
     this.token = await AsyncStorage.getItem(TOKEN_KEY);
+    this.initialized = true;
+    console.log('[ApiClient] Token loaded:', this.token ? 'YES (length: ' + this.token.length + ')' : 'NO');
+  }
+
+  private async ensureInitialized() {
+    // If already initialized, return immediately
+    if (this.initialized) {
+      return;
+    }
+
+    // If init is in progress, wait for it
+    if (this.initPromise) {
+      await this.initPromise;
+      return;
+    }
+
+    // Initialize now
+    console.log('[ApiClient] Auto-initializing...');
+    this.initPromise = this.init();
+    await this.initPromise;
+    this.initPromise = null;
   }
 
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
+    // Always ensure we're initialized before making a request
+    await this.ensureInitialized();
+
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -26,25 +55,33 @@ class ApiClient {
 
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
+      console.log(`[ApiClient] Request to ${endpoint} with auth token`);
+    } else {
+      console.warn(`[ApiClient] Request to ${endpoint} WITHOUT auth token!`);
     }
 
+    console.log(`[ApiClient] Fetching ${API_URL}${endpoint}`);
     const response = await fetch(`${API_URL}${endpoint}`, {
       ...options,
       headers,
     });
 
+    console.log(`[ApiClient] Response status: ${response.status} ${response.statusText}`);
+
     // Check if response is JSON
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       const text = await response.text();
-      console.error('Non-JSON response:', text.substring(0, 200));
+      console.error('[ApiClient] Non-JSON response:', text.substring(0, 200));
       throw new Error(`Server error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log(`[ApiClient] Response data:`, data);
 
     if (!response.ok) {
-      throw new Error(data.message || 'An error occurred');
+      console.error(`[ApiClient] Request failed:`, data);
+      throw new Error(data.message || data.error || 'An error occurred');
     }
 
     return data;
@@ -52,11 +89,13 @@ class ApiClient {
 
   async setToken(token: string) {
     this.token = token;
+    this.initialized = true;
     await AsyncStorage.setItem(TOKEN_KEY, token);
   }
 
   async clearToken() {
     this.token = null;
+    this.initialized = true; // Still initialized, just no token
     await AsyncStorage.removeItem(TOKEN_KEY);
   }
 

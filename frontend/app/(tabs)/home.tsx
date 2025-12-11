@@ -57,9 +57,9 @@ export default function HomeScreen() {
                 { color: colors.success, percentage: stakeScore },
               ]}
             />
-            <Pressable onPress={() => router.push('/library')}>
-              <Text style={styles.seeDetailsLink}>See Details</Text>
-            </Pressable>
+            <Text style={styles.engagementBreakdown}>
+              {listsCount} {listsCount === 1 ? 'list' : 'lists'} • {purchasesCount} {purchasesCount === 1 ? 'purchase' : 'purchases'} • {stakesCount} {stakesCount === 1 ? 'stake' : 'stakes'}
+            </Text>
           </Card>
 
           {/* Purchases */}
@@ -157,12 +157,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: spacing[5], // Extra vertical padding for ProgressCircle
   },
-  seeDetailsLink: {
+  engagementBreakdown: {
     fontFamily: typography.fonts.medium,
     fontSize: typography.sizes.xs, // 12px
-    color: colors.accent[500],
+    color: colors.text.tertiary,
     marginTop: spacing[3], // 12px below ProgressCircle
-    textDecorationLine: 'underline',
+    textAlign: 'center',
   },
   statValue: {
     fontFamily: typography.fonts.bold,

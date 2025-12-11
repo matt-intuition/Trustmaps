@@ -6,6 +6,9 @@ import authRoutes from './api/routes/auth';
 import importRoutes from './api/routes/import';
 import listsRoutes from './api/routes/lists';
 import placesRoutes from './api/routes/places';
+import stakesRoutes from './api/routes/stakes';
+import reviewsRoutes from './api/routes/reviews';
+import exportRoutes from './api/routes/export';
 import { initializePassport } from './api/auth/passport';
 
 // Load environment variables
@@ -33,6 +36,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/lists', listsRoutes);
 app.use('/api/places', placesRoutes);
+app.use('/api/stakes', stakesRoutes);
+app.use('/api/reviews', reviewsRoutes);
+app.use('/api/export', exportRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

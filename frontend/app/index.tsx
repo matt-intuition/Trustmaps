@@ -5,7 +5,12 @@ import { useAuthStore } from '../src/stores/authStore';
 import { colors } from '../src/utils/theme';
 
 export default function Index() {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, loadUser } = useAuthStore();
+
+  useEffect(() => {
+    // Initialize auth on app start
+    loadUser();
+  }, []);
 
   if (isLoading) {
     return (
