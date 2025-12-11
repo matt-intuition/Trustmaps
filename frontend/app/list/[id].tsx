@@ -18,6 +18,7 @@ import { ReviewCard } from '../../src/components/reviews/ReviewCard';
 import { StarRating } from '../../src/components/common/StarRating';
 import { MapViewComponent, MapMarker } from '../../src/components/common/MapView';
 import { BlurredPlaceCard } from '../../src/components/places/BlurredPlaceCard';
+import { useAuthStore } from '../../src/stores/authStore';
 
 type TabType = 'overview' | 'places' | 'reviews' | 'map';
 
@@ -80,6 +81,7 @@ interface ListMeta {
 export default function ListDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { refreshUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [list, setList] = useState<ListDetail | null>(null);
   const [meta, setMeta] = useState<ListMeta | null>(null);
@@ -146,7 +148,13 @@ export default function ListDetailScreen() {
   };
 
   const handlePurchase = async () => {
-    if (!list) return;
+    if (!list || !meta) return;
+
+    // Safety check: don't allow owners to purchase their own lists
+    if (meta.isOwner) {
+      Alert.alert('Error', 'You cannot purchase your own list');
+      return;
+    }
 
     Alert.alert(
       'Purchase List',
@@ -160,9 +168,14 @@ export default function ListDetailScreen() {
               setActionLoading(true);
               const response = await apiClient.post(`/lists/${id}/purchase`);
               Alert.alert('Success', 'List purchased successfully!');
-              fetchListDetail(); // Refresh to show full content
+              // Refresh both list detail (to update meta.hasAccess) and user balance
+              await Promise.all([
+                fetchListDetail(),
+                refreshUser()
+              ]);
             } catch (error: any) {
-              Alert.alert('Error', error.response?.data?.message || 'Purchase failed');
+              console.error('Purchase error:', error);
+              Alert.alert('Error', error.response?.data?.message || error.message || 'Purchase failed');
             } finally {
               setActionLoading(false);
             }
@@ -318,7 +331,7 @@ export default function ListDetailScreen() {
   const renderPlacesTab = () => {
     if (!list || !meta) return null;
 
-    const showLock = !meta.hasAccess && !list.isFree;
+    const showLock = !meta.hasAccess && !list.isFree && !meta.isOwner;
     const places = list.places;
 
     return (
