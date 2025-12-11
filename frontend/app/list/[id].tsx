@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { Avatar } from '../../src/components/common/Avatar';
 import { Badge } from '../../src/components/common/Badge';
 import { MetadataGrid } from '../../src/components/common/MetadataGrid';
 import { Button } from '../../src/components/common/Button';
+import { Skeleton } from '../../src/components/common/Skeleton';
 import { apiClient } from '../../src/api/client';
 import { StakeModal } from '../../src/components/stakes/StakeModal';
 import { ExportModal } from '../../src/components/export/ExportModal';
@@ -458,7 +459,8 @@ export default function ListDetailScreen() {
         {/* Reviews List */}
         {reviewsLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.accent[500]} />
+            <Skeleton variant="card" height={100} style={{ marginBottom: spacing[3] }} />
+            <Skeleton variant="card" height={100} />
           </View>
         ) : reviews.length > 0 ? (
           <View style={styles.reviewsList}>
@@ -496,7 +498,20 @@ export default function ListDetailScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.accent[500]} />
+          {/* Header Skeleton */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing[4] }}>
+            <Skeleton variant="circle" width={40} height={40} style={{ marginRight: spacing[3] }} />
+            <Skeleton variant="text" width="60%" height={24} />
+          </View>
+          {/* Tab Bar Skeleton */}
+          <View style={{ flexDirection: 'row', gap: spacing[3], marginBottom: spacing[6] }}>
+            <Skeleton variant="rect" width={80} height={36} />
+            <Skeleton variant="rect" width={80} height={36} />
+            <Skeleton variant="rect" width={80} height={36} />
+          </View>
+          {/* Content Skeleton */}
+          <Skeleton variant="card" height={200} style={{ marginBottom: spacing[4] }} />
+          <Skeleton variant="card" height={150} />
         </View>
       </SafeAreaView>
     );
@@ -600,8 +615,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: spacing[6],
+    paddingVertical: spacing[6],
   },
   errorContainer: {
     flex: 1,

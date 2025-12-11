@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, textStyles } from '../../src/utils/theme';
 import { Input } from '../../src/components/common/Input';
 import { Badge } from '../../src/components/common/Badge';
+import { Skeleton } from '../../src/components/common/Skeleton';
 import { MarketplaceListCard, MarketplaceList } from '../../src/components/marketplace/MarketplaceListCard';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
@@ -191,7 +192,9 @@ export default function MarketplaceScreen() {
       {/* Lists */}
       {loading && page === 1 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.accent[500]} />
+          <Skeleton variant="card" height={140} style={{ marginBottom: spacing[4] }} />
+          <Skeleton variant="card" height={140} style={{ marginBottom: spacing[4] }} />
+          <Skeleton variant="card" height={140} />
         </View>
       ) : (
         <FlatList
@@ -253,8 +256,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: spacing[6],
+    paddingVertical: spacing[6],
   },
   emptyState: {
     alignItems: 'center',

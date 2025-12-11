@@ -2,11 +2,48 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
 import passport from 'passport';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { prisma } from '../../config/database';
 import { generateToken } from '../auth/jwt';
 import { authenticateJWT } from '../middleware/auth';
 
 const router = Router();
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '../../../uploads/profiles');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Multer configuration for profile image uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const user = req.user as any;
+    const ext = path.extname(file.originalname);
+    cb(null, `${user.id}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed (jpeg, jpg, png, gif, webp)'));
+    }
+  },
+});
 
 // Validation middleware
 const signupValidation = [
@@ -186,6 +223,130 @@ router.get(
       res.status(500).json({
         error: 'Failed to get profile',
         message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+);
+
+// PUT /api/auth/profile - Update user profile (displayName, bio)
+router.put(
+  '/profile',
+  authenticateJWT,
+  [
+    body('displayName')
+      .optional()
+      .isLength({ min: 1, max: 50 })
+      .withMessage('Display name must be between 1 and 50 characters'),
+    body('bio')
+      .optional()
+      .isLength({ max: 500 })
+      .withMessage('Bio must be less than 500 characters'),
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const user = req.user as any;
+      const { displayName, bio } = req.body;
+
+      // Update user profile
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          ...(displayName !== undefined && { displayName }),
+          ...(bio !== undefined && { bio }),
+        },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          displayName: true,
+          bio: true,
+          profileImage: true,
+          trustBalance: true,
+          creatorReputation: true,
+          totalStaked: true,
+          createdAt: true,
+          _count: {
+            select: {
+              createdLists: true,
+              purchases: true,
+              stakes: true,
+            },
+          },
+        },
+      });
+
+      res.json({
+        message: 'Profile updated successfully',
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error('Update profile error:', error);
+      res.status(500).json({
+        error: 'Failed to update profile',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+// POST /api/auth/profile/image - Upload profile image
+router.post(
+  '/profile/image',
+  authenticateJWT,
+  upload.single('image'),
+  async (req: Request, res: Response) => {
+    try {
+      const user = req.user as any;
+
+      if (!req.file) {
+        return res.status(400).json({
+          error: 'No file uploaded',
+          message: 'Please provide an image file',
+        });
+      }
+
+      // Generate URL for the uploaded image
+      const imageUrl = `${process.env.API_URL || 'http://localhost:3001'}/uploads/profiles/${req.file.filename}`;
+
+      // Update user's profile image
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: { profileImage: imageUrl },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          displayName: true,
+          bio: true,
+          profileImage: true,
+          trustBalance: true,
+          creatorReputation: true,
+          totalStaked: true,
+          createdAt: true,
+          _count: {
+            select: {
+              createdLists: true,
+              purchases: true,
+              stakes: true,
+            },
+          },
+        },
+      });
+
+      res.json({
+        message: 'Profile image uploaded successfully',
+        user: updatedUser,
+      });
+    } catch (error) {
+      console.error('Upload profile image error:', error);
+      res.status(500).json({
+        error: 'Failed to upload image',
+        message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
