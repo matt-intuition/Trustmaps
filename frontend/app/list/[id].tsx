@@ -16,8 +16,9 @@ import { ExportModal } from '../../src/components/export/ExportModal';
 import { ReviewForm } from '../../src/components/reviews/ReviewForm';
 import { ReviewCard } from '../../src/components/reviews/ReviewCard';
 import { StarRating } from '../../src/components/common/StarRating';
+import { MapViewComponent, MapMarker } from '../../src/components/common/MapView';
 
-type TabType = 'overview' | 'places' | 'reviews';
+type TabType = 'overview' | 'places' | 'reviews' | 'map';
 
 interface Place {
   id: string;
@@ -493,6 +494,52 @@ export default function ListDetailScreen() {
     );
   };
 
+  const renderMapTab = () => {
+    if (!list || !meta) return null;
+
+    // Only show map if user has access to the places
+    if (!meta.hasAccess && !list.isFree && !meta.isOwner) {
+      return (
+        <View style={styles.tabContent}>
+          <View style={styles.lockedContent}>
+            <Ionicons name="lock-closed" size={64} color={colors.neutral[400]} />
+            <Text style={styles.lockedTitle}>Map Locked</Text>
+            <Text style={styles.lockedText}>
+              Purchase this list to view locations on the map
+            </Text>
+            <Button
+              title={`Purchase for ${list.price} TRUST`}
+              onPress={handlePurchase}
+              variant="primary"
+              loading={actionLoading}
+              icon={<Ionicons name="cart" size={20} color={colors.surface} />}
+              style={styles.purchaseButton}
+            />
+          </View>
+        </View>
+      );
+    }
+
+    // Convert places to map markers
+    const markers: MapMarker[] = list.places.map((p) => ({
+      id: p.place.id,
+      latitude: p.place.latitude,
+      longitude: p.place.longitude,
+      title: p.place.name,
+      description: p.notes || undefined,
+      address: p.place.address,
+    }));
+
+    return (
+      <View style={styles.mapTabContent}>
+        <MapViewComponent
+          markers={markers}
+          style={styles.mapView}
+        />
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -566,6 +613,7 @@ export default function ListDetailScreen() {
         tabs={[
           { value: 'overview', label: 'Overview' },
           { value: 'places', label: 'Places' },
+          { value: 'map', label: 'Map' },
           { value: 'reviews', label: 'Reviews' },
         ]}
         activeTab={activeTab}
@@ -577,9 +625,11 @@ export default function ListDetailScreen() {
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={activeTab !== 'map'}
       >
         {activeTab === 'overview' && renderOverviewTab()}
         {activeTab === 'places' && renderPlacesTab()}
+        {activeTab === 'map' && renderMapTab()}
         {activeTab === 'reviews' && renderReviewsTab()}
       </ScrollView>
 
@@ -925,5 +975,14 @@ const styles = StyleSheet.create({
   },
   reviewsList: {
     gap: spacing[4],
+  },
+  mapTabContent: {
+    flex: 1,
+    height: 600, // Fixed height for map
+  },
+  mapView: {
+    flex: 1,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
   },
 });
