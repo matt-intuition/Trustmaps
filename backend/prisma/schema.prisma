@@ -25,12 +25,13 @@ model User {
   updatedAt          DateTime    @updatedAt
 
   // Relations
-  createdLists       List[]      @relation("CreatedLists")
+  createdLists       List[]       @relation("CreatedLists")
   purchases          Purchase[]
   stakes             Stake[]
-  stakesOnCreators   UserStake[] @relation("Staker")
-  stakesReceived     UserStake[] @relation("Creator")
+  stakesOnCreators   UserStake[]  @relation("Staker")
+  stakesReceived     UserStake[]  @relation("Creator")
   reviews            Review[]
+  savedLists         SavedList[]  // Lists user has saved (bookmarked)
 
   @@index([email])
   @@index([username])
@@ -73,8 +74,8 @@ model List {
   city            String?
   tags            String[]    @default([])
   isPublic        Boolean     @default(false)
-  isPaid          Boolean     @default(false)
-  price           Float       @default(0) // 0 if free
+  isFree          Boolean     @default(true)  // true = free, false = paid
+  price           Int?                        // Price in TRUST tokens (null if free)
   placeCount      Int         @default(0)
   trustRank       Float       @default(0) // calculated
   totalStaked     Int         @default(0)
@@ -88,15 +89,16 @@ model List {
   updatedAt       DateTime    @updatedAt
 
   // Relations
-  creator         User        @relation("CreatedLists", fields: [creatorId], references: [id], onDelete: Cascade)
+  creator         User         @relation("CreatedLists", fields: [creatorId], references: [id], onDelete: Cascade)
   places          ListPlace[]
   purchases       Purchase[]
   stakes          Stake[]
   reviews         Review[]
+  savedBy         SavedList[]  // Users who saved this list
 
   @@index([creatorId])
   @@index([isPublic])
-  @@index([isPaid])
+  @@index([isFree])
   @@index([city])
   @@index([trustRank])
   @@index([createdAt])
@@ -198,4 +200,20 @@ model Review {
   @@index([listId])
   @@index([rating])
   @@map("reviews")
+}
+
+model SavedList {
+  id        String   @id @default(uuid())
+  userId    String
+  listId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listId]) // User can only save a list once
+  @@index([userId])
+  @@index([listId])
+  @@map("saved_lists")
 }

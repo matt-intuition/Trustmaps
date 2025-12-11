@@ -172,8 +172,102 @@ router.get('/marketplace', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/lists/saved
+ * Get user's saved (bookmarked) lists
+ */
+router.get('/saved', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+
+    const savedLists = await prisma.savedList.findMany({
+      where: {
+        userId,
+      },
+      include: {
+        list: {
+          include: {
+            creator: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                profileImage: true,
+              },
+            },
+            _count: {
+              select: {
+                places: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    const lists = savedLists.map((saved) => saved.list);
+    res.json({ lists });
+  } catch (error) {
+    console.error('Error fetching saved lists:', error);
+    res.status(500).json({
+      error: 'Server error',
+      message: error instanceof Error ? error.message : 'Failed to fetch saved lists',
+    });
+  }
+});
+
+/**
+ * GET /api/lists/purchased
+ * Get user's purchased lists
+ */
+router.get('/purchased', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+
+    const purchases = await prisma.purchase.findMany({
+      where: {
+        userId,
+      },
+      include: {
+        list: {
+          include: {
+            creator: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                profileImage: true,
+              },
+            },
+            _count: {
+              select: {
+                places: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    const lists = purchases.map((purchase) => purchase.list);
+    res.json({ lists });
+  } catch (error) {
+    console.error('Error fetching purchased lists:', error);
+    res.status(500).json({
+      error: 'Server error',
+      message: error instanceof Error ? error.message : 'Failed to fetch purchased lists',
+    });
+  }
+});
+
+/**
  * GET /api/lists/:id
- * Get list details with places
+ * Get list details with places (respects access control for paid lists)
  */
 router.get('/:id', async (req: Request, res: Response) => {
   try {
@@ -202,6 +296,14 @@ router.get('/:id', async (req: Request, res: Response) => {
             id: true,
             username: true,
             displayName: true,
+            profileImage: true,
+            creatorReputation: true,
+          },
+        },
+        _count: {
+          select: {
+            purchases: true,
+            stakes: true,
           },
         },
       },
@@ -214,12 +316,396 @@ router.get('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    res.json({ list });
+    // Check access for paid lists
+    const isOwner = list.creatorId === userId;
+    let hasAccess = isOwner || list.isFree;
+
+    if (!hasAccess && !list.isFree) {
+      // Check if user has purchased this list
+      const purchase = await prisma.purchase.findFirst({
+        where: {
+          userId,
+          listId: id,
+        },
+      });
+      hasAccess = !!purchase;
+    }
+
+    // Check if user has saved this list
+    const saved = await prisma.savedList.findFirst({
+      where: {
+        userId,
+        listId: id,
+      },
+    });
+
+    // For paid lists without access, show only 1 preview place
+    let places = list.places;
+    if (!hasAccess && !list.isFree) {
+      places = list.places.slice(0, 1);
+    }
+
+    res.json({
+      list: {
+        ...list,
+        places,
+      },
+      meta: {
+        isOwner,
+        hasAccess,
+        isSaved: !!saved,
+        totalPlaces: list.places.length,
+        previewPlaces: places.length,
+      },
+    });
   } catch (error) {
     console.error('Error fetching list:', error);
     res.status(500).json({
       error: 'Server error',
       message: error instanceof Error ? error.message : 'Failed to fetch list',
+    });
+  }
+});
+
+/**
+ * POST /api/lists/:id/save
+ * Save (bookmark) a free list
+ */
+router.post('/:id/save', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req.user as any).id;
+
+    // Check if list exists and is free
+    const list = await prisma.list.findUnique({
+      where: { id },
+      select: { isFree: true, isPublic: true },
+    });
+
+    if (!list) {
+      return res.status(404).json({
+        error: 'Not found',
+        message: 'List not found',
+      });
+    }
+
+    if (!list.isPublic) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Cannot save private lists',
+      });
+    }
+
+    if (!list.isFree) {
+      return res.status(400).json({
+        error: 'Bad request',
+        message: 'Cannot save paid lists. Please purchase instead.',
+      });
+    }
+
+    // Check if already saved
+    const existing = await prisma.savedList.findUnique({
+      where: {
+        userId_listId: {
+          userId,
+          listId: id,
+        },
+      },
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        error: 'Bad request',
+        message: 'List already saved',
+      });
+    }
+
+    // Save the list
+    await prisma.savedList.create({
+      data: {
+        userId,
+        listId: id,
+      },
+    });
+
+    res.json({
+      message: 'List saved successfully',
+      saved: true,
+    });
+  } catch (error) {
+    console.error('Error saving list:', error);
+    res.status(500).json({
+      error: 'Server error',
+      message: error instanceof Error ? error.message : 'Failed to save list',
+    });
+  }
+});
+
+/**
+ * DELETE /api/lists/:id/save
+ * Unsave (unbookmark) a list
+ */
+router.delete('/:id/save', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req.user as any).id;
+
+    const deleted = await prisma.savedList.deleteMany({
+      where: {
+        userId,
+        listId: id,
+      },
+    });
+
+    if (deleted.count === 0) {
+      return res.status(404).json({
+        error: 'Not found',
+        message: 'Saved list not found',
+      });
+    }
+
+    res.json({
+      message: 'List unsaved successfully',
+      saved: false,
+    });
+  } catch (error) {
+    console.error('Error unsaving list:', error);
+    res.status(500).json({
+      error: 'Server error',
+      message: error instanceof Error ? error.message : 'Failed to unsave list',
+    });
+  }
+});
+
+/**
+ * PUT /api/lists/:id
+ * Update list details (owner only)
+ */
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req.user as any).id;
+    const { title, description, category, isFree, price } = req.body;
+
+    // Check ownership
+    const list = await prisma.list.findUnique({
+      where: { id },
+      select: { creatorId: true },
+    });
+
+    if (!list) {
+      return res.status(404).json({
+        error: 'Not found',
+        message: 'List not found',
+      });
+    }
+
+    if (list.creatorId !== userId) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'You can only edit your own lists',
+      });
+    }
+
+    // Validate price for paid lists
+    if (isFree === false && (!price || price <= 0)) {
+      return res.status(400).json({
+        error: 'Bad request',
+        message: 'Price must be greater than 0 for paid lists',
+      });
+    }
+
+    // Update list
+    const updatedList = await prisma.list.update({
+      where: { id },
+      data: {
+        ...(title && { title }),
+        ...(description !== undefined && { description }),
+        ...(category && { category }),
+        ...(isFree !== undefined && { isFree }),
+        ...(price !== undefined && { price: isFree ? null : price }),
+      },
+    });
+
+    res.json({
+      message: 'List updated successfully',
+      list: updatedList,
+    });
+  } catch (error) {
+    console.error('Error updating list:', error);
+    res.status(500).json({
+      error: 'Server error',
+      message: error instanceof Error ? error.message : 'Failed to update list',
+    });
+  }
+});
+
+/**
+ * POST /api/lists/:id/purchase
+ * Purchase a paid list
+ */
+router.post('/:id/purchase', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req.user as any).id;
+
+    // Get list and user in parallel
+    const [list, user] = await Promise.all([
+      prisma.list.findUnique({
+        where: { id },
+        include: {
+          creator: {
+            select: { id: true },
+          },
+          stakes: {
+            select: { amount: true },
+          },
+        },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { trustBalance: true },
+      }),
+    ]);
+
+    if (!list) {
+      return res.status(404).json({
+        error: 'Not found',
+        message: 'List not found',
+      });
+    }
+
+    if (list.isFree) {
+      return res.status(400).json({
+        error: 'Bad request',
+        message: 'This list is free. Use save instead.',
+      });
+    }
+
+    if (!list.price) {
+      return res.status(400).json({
+        error: 'Bad request',
+        message: 'List price not set',
+      });
+    }
+
+    if (list.creatorId === userId) {
+      return res.status(400).json({
+        error: 'Bad request',
+        message: 'You cannot purchase your own list',
+      });
+    }
+
+    // Check if already purchased
+    const existing = await prisma.purchase.findUnique({
+      where: {
+        userId_listId: {
+          userId,
+          listId: id,
+        },
+      },
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        error: 'Bad request',
+        message: 'You have already purchased this list',
+      });
+    }
+
+    // Check user balance
+    if (!user || user.trustBalance < list.price) {
+      return res.status(400).json({
+        error: 'Insufficient balance',
+        message: `You need ${list.price} TRUST tokens. Current balance: ${user?.trustBalance || 0}`,
+      });
+    }
+
+    // Calculate revenue distribution (65% creator, 25% stakers, 10% protocol)
+    const revenueToCreator = Math.floor(list.price * 0.65);
+    const revenueToStakers = Math.floor(list.price * 0.25);
+    const revenueToProtocol = list.price - revenueToCreator - revenueToStakers;
+
+    // Execute transaction
+    await prisma.$transaction(async (tx) => {
+      // Deduct from buyer
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          trustBalance: {
+            decrement: list.price!,
+          },
+        },
+      });
+
+      // Pay creator
+      await tx.user.update({
+        where: { id: list.creatorId },
+        data: {
+          trustBalance: {
+            increment: revenueToCreator,
+          },
+        },
+      });
+
+      // Distribute to stakers proportionally
+      const totalStaked = list.stakes.reduce((sum, stake) => sum + stake.amount, 0);
+      if (totalStaked > 0) {
+        for (const stake of list.stakes) {
+          const stakeShare = Math.floor((stake.amount / totalStaked) * revenueToStakers);
+          await tx.stake.update({
+            where: {
+              userId_listId: {
+                userId: (stake as any).userId,
+                listId: id,
+              },
+            },
+            data: {
+              earnedRevenue: {
+                increment: stakeShare,
+              },
+            },
+          });
+        }
+      }
+
+      // Record purchase
+      await tx.purchase.create({
+        data: {
+          userId,
+          listId: id,
+          price: list.price!,
+          revenueToCreator,
+          revenueToStakers,
+          revenueToProtocol,
+        },
+      });
+
+      // Update list stats
+      await tx.list.update({
+        where: { id },
+        data: {
+          totalSales: {
+            increment: 1,
+          },
+          totalEarnings: {
+            increment: list.price!,
+          },
+        },
+      });
+    });
+
+    res.json({
+      message: 'Purchase successful',
+      purchased: true,
+      price: list.price,
+      newBalance: user.trustBalance - list.price,
+    });
+  } catch (error) {
+    console.error('Error purchasing list:', error);
+    res.status(500).json({
+      error: 'Server error',
+      message: error instanceof Error ? error.message : 'Failed to purchase list',
     });
   }
 });
