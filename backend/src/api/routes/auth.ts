@@ -211,7 +211,9 @@ router.get(
             select: {
               createdLists: true,
               purchases: true,
-              stakes: true
+              stakes: true,
+              following: true,
+              followers: true
             }
           }
         }

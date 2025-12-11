@@ -128,6 +128,22 @@ export default function ProfileScreen() {
 
           <View style={styles.divider} />
 
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/following' as any)}
+          >
+            <Ionicons name="people-outline" size={20} color={colors.neutral[600]} />
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Following</Text>
+              <Text style={styles.menuSubtitle}>
+                {(user as any)?._count?.following || 0} creators
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="settings-outline" size={20} color={colors.neutral[600]} />
             <View style={styles.menuContent}>

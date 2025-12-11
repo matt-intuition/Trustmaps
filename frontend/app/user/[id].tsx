@@ -29,6 +29,8 @@ interface CreatorProfile {
     purchases: number;
     stakes: number;
     stakesReceived: number;
+    followers: number;
+    following: number;
   };
 }
 
@@ -56,7 +58,8 @@ export default function CreatorProfileScreen() {
   const [listsLoading, setListsLoading] = useState(true);
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [lists, setLists] = useState<CreatorList[]>([]);
-  const [stakeAmount, setStakeAmount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -68,6 +71,7 @@ export default function CreatorProfileScreen() {
       setLoading(true);
       const response = await apiClient.get(`/users/${id}`);
       setProfile(response.user);
+      setIsFollowing(response.meta?.isFollowing || false);
     } catch (error: any) {
       console.error('Error loading creator profile:', error);
       Alert.alert('Error', error.message || 'Failed to load creator profile');
@@ -87,6 +91,51 @@ export default function CreatorProfileScreen() {
       console.error('Error loading creator lists:', error);
     } finally {
       setListsLoading(false);
+    }
+  };
+
+  const handleFollow = async () => {
+    try {
+      setFollowLoading(true);
+
+      if (isFollowing) {
+        // Unfollow
+        await apiClient.delete(`/follows/${id}`);
+        setIsFollowing(false);
+
+        // Update follower count optimistically
+        if (profile) {
+          setProfile({
+            ...profile,
+            _count: {
+              ...profile._count,
+              followers: Math.max(0, profile._count.followers - 1),
+            },
+          });
+        }
+      } else {
+        // Follow
+        await apiClient.post(`/follows/${id}`);
+        setIsFollowing(true);
+
+        // Update follower count optimistically
+        if (profile) {
+          setProfile({
+            ...profile,
+            _count: {
+              ...profile._count,
+              followers: profile._count.followers + 1,
+            },
+          });
+        }
+      }
+    } catch (error: any) {
+      console.error('Error toggling follow:', error);
+      Alert.alert('Error', error.message || 'Failed to update follow status');
+      // Revert on error
+      loadProfile();
+    } finally {
+      setFollowLoading(false);
     }
   };
 
@@ -180,13 +229,29 @@ export default function CreatorProfileScreen() {
 
           {/* Action Buttons */}
           {!isOwnProfile && (
-            <Button
-              title="Stake on Creator"
-              variant="primary"
-              onPress={handleStake}
-              icon={<Ionicons name="trending-up-outline" size={20} color={colors.text.inverse} />}
-              style={styles.stakeButton}
-            />
+            <View style={styles.actionButtons}>
+              <Button
+                title={isFollowing ? 'Following' : 'Follow'}
+                variant={isFollowing ? 'outline' : 'primary'}
+                onPress={handleFollow}
+                loading={followLoading}
+                icon={
+                  <Ionicons
+                    name={isFollowing ? 'checkmark-circle' : 'person-add-outline'}
+                    size={20}
+                    color={isFollowing ? colors.accent[500] : colors.text.inverse}
+                  />
+                }
+                style={styles.followButton}
+              />
+              <Button
+                title="Stake"
+                variant="outline"
+                onPress={handleStake}
+                icon={<Ionicons name="trending-up-outline" size={20} color={colors.accent[500]} />}
+                style={styles.stakeButton}
+              />
+            </View>
           )}
         </View>
 
@@ -194,10 +259,10 @@ export default function CreatorProfileScreen() {
         <Card variant="flat" padding={5} style={styles.statsCard}>
           <MetadataGrid
             items={[
-              { label: 'Total Sales', value: profile.totalSales || 0, icon: 'cart-outline' },
-              { label: 'Earnings', value: profile.totalEarnings || 0, icon: 'cash-outline' },
-              { label: 'Lists Created', value: profile._count.createdLists || 0, icon: 'map-outline' },
-              { label: 'Total Staked', value: profile.totalStaked || 0, icon: 'trending-up-outline' },
+              { label: 'Lists', value: profile._count.createdLists || 0, icon: 'map-outline' },
+              { label: 'Sales', value: profile.totalSales || 0, icon: 'cart-outline' },
+              { label: 'Followers', value: profile._count.followers || 0, icon: 'people-outline' },
+              { label: 'Following', value: profile._count.following || 0, icon: 'person-outline' },
             ]}
             columns={2}
           />
@@ -337,9 +402,16 @@ const styles = StyleSheet.create({
   reputationContainer: {
     marginTop: spacing[4],
   },
-  stakeButton: {
+  actionButtons: {
+    flexDirection: 'row',
+    gap: spacing[3],
     marginTop: spacing[4],
-    minWidth: 200,
+  },
+  followButton: {
+    flex: 1,
+  },
+  stakeButton: {
+    flex: 1,
   },
   statsCard: {
     marginHorizontal: spacing[6],
