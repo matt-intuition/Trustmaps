@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import passport from 'passport';
 import { prisma } from '../../config/database';
 import { generateToken } from '../auth/jwt';
+import { authenticateJWT } from '../middleware/auth';
 
 const router = Router();
 
@@ -150,7 +151,7 @@ router.post('/login', loginValidation, async (req: Request, res: Response, next:
 // GET /api/auth/me - Get current user profile
 router.get(
   '/me',
-  passport.authenticate('jwt', { session: false }),
+  authenticateJWT,
   async (req: Request, res: Response) => {
     try {
       const user = req.user as any;

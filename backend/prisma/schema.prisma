@@ -39,23 +39,24 @@ model User {
 }
 
 model Place {
-  id             String      @id @default(uuid())
-  googlePlaceId  String?     @unique
-  name           String
-  address        String
-  latitude       Float
-  longitude      Float
-  city           String?
-  country        String?
-  category       String?     // restaurant, bar, cafe, etc.
-  cuisine        String?
-  rating         Float?
-  priceLevel     Int?        // 1-4
-  photoUrl       String?
-  createdAt      DateTime    @default(now())
+  id              String      @id @default(uuid())
+  googlePlaceId   String?     @unique
+  name            String
+  address         String
+  latitude        Float
+  longitude       Float
+  city            String?
+  country         String?
+  category        String?     // restaurant, bar, cafe, etc.
+  cuisine         String?
+  rating          Float?
+  priceLevel      Int?        // 1-4
+  photoReference  String?     // Google Places photo reference
+  photoUrl        String?     // Direct image URL (for non-Google images)
+  createdAt       DateTime    @default(now())
 
   // Relations
-  listPlaces     ListPlace[]
+  listPlaces      ListPlace[]
 
   @@index([city])
   @@index([category])
@@ -80,6 +81,9 @@ model List {
   totalSales      Int         @default(0)
   totalEarnings   Float       @default(0)
   averageRating   Float?
+  centerLatitude  Float?      // Center point for map visualization
+  centerLongitude Float?      // Center point for map visualization
+  category        String?     // Derived from tags[0] for easier filtering
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -96,6 +100,7 @@ model List {
   @@index([city])
   @@index([trustRank])
   @@index([createdAt])
+  @@index([category])
   @@map("lists")
 }
 

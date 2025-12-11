@@ -90,11 +90,11 @@ export default function ImportScreen() {
 
       console.log('Upload result:', result);
 
-      // Navigate to processing screen with jobId
+      // Navigate to list selection screen with filePath
       router.push({
-        pathname: '/import/processing',
+        pathname: '/import/select-lists',
         params: {
-          jobId: result.jobId,
+          filePath: result.filePath,
         },
       });
     } catch (error) {

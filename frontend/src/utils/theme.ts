@@ -162,6 +162,44 @@ export const shadows = {
     shadowRadius: 16,
     elevation: 8,
   },
+  colored: {
+    shadowColor: '#6366F1', // accent.500
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+};
+
+// Gradients - For premium features, progress indicators, backgrounds
+export const gradients = {
+  premium: ['#3B82F6', '#8B5CF6'], // blue → purple (SuppCo inspired)
+  success: ['#10B981', '#059669'], // green → dark green
+  warning: ['#F59E0B', '#D97706'], // amber → dark amber
+  trust: ['#6366F1', '#4F46E5'],   // indigo → dark indigo
+  error: ['#EF4444', '#DC2626'],   // red → dark red
+  // Category gradients for placeholder images
+  food: ['#F59E0B', '#EF4444'],       // amber → red
+  travel: ['#3B82F6', '#6366F1'],     // blue → indigo
+  nightlife: ['#8B5CF6', '#7C3AED'],  // purple → dark purple
+  shopping: ['#EC4899', '#DB2777'],   // pink → dark pink
+  wellness: ['#10B981', '#059669'],   // green → dark green
+  culture: ['#6366F1', '#4F46E5'],    // indigo → dark indigo
+  outdoors: ['#059669', '#047857'],   // dark green → darker green
+  default: ['#737373', '#525252'],    // neutral → darker neutral
+};
+
+// Animation Timings - Consistent micro-interactions
+export const animations = {
+  fast: 150,       // Quick feedback (button press, checkbox toggle)
+  normal: 250,     // Standard transitions (modals, slides)
+  slow: 400,       // Page transitions, complex animations
+  // Spring configuration for natural motion
+  spring: {
+    damping: 15,
+    stiffness: 200,
+    mass: 1,
+  },
 };
 
 // Layout Constraints - Responsive breakpoints
@@ -256,6 +294,8 @@ export const theme = {
   spacing,
   borderRadius,
   shadows,
+  gradients,
+  animations,
   maxWidth,
   textStyles,
 };

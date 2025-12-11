@@ -78,7 +78,8 @@ async function processSavedListsCsv(
   csvEntries: AdmZip.IZipEntry[],
   userId: string,
   jobId: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  selectedLists?: Array<{ name: string; displayName?: string; isPaid: boolean; price: number }>
 ): Promise<ProcessResult> {
   const job = importJobs.get(jobId);
   if (!job) {
@@ -89,18 +90,35 @@ async function processSavedListsCsv(
   let totalPlacesImported = 0;
   const errors: string[] = [];
 
+  // Filter entries if selectedLists is provided
+  let entriesToProcess = csvEntries;
+  if (selectedLists && selectedLists.length > 0) {
+    const selectedNames = new Set(selectedLists.map(l => l.name));
+    entriesToProcess = csvEntries.filter(entry => {
+      const listName = path.basename(entry.entryName, '.csv');
+      return selectedNames.has(listName);
+    });
+    console.log(`Processing ${entriesToProcess.length} selected lists out of ${csvEntries.length} total`);
+  }
+
   job.stage = 'parsing';
-  job.totalLists = csvEntries.length;
+  job.totalLists = entriesToProcess.length;
   job.progress = 40; // Start at 40% after extraction and detection
   if (onProgress) onProgress(job);
 
-  for (let i = 0; i < csvEntries.length; i++) {
-    const csvEntry = csvEntries[i];
+  for (let i = 0; i < entriesToProcess.length; i++) {
+    const csvEntry = entriesToProcess[i];
 
     try {
       // Extract list name from filename (remove "Saved/" prefix and ".csv" suffix)
       const listName = path.basename(csvEntry.entryName, '.csv');
       console.log(`Processing list: ${listName}`);
+
+      // Get configuration for this list (pricing + custom name)
+      const listConfig = selectedLists?.find(l => l.name === listName);
+      const isPaid = listConfig?.isPaid ?? false;
+      const price = listConfig?.price ?? 0;
+      const displayName = listConfig?.displayName || listName; // Use custom name if provided
 
       // Parse CSV
       const csvData = csvEntry.getData().toString('utf8');
@@ -131,14 +149,40 @@ async function processSavedListsCsv(
         category: 'general',
       }));
 
+      // Determine default coordinates based on list name (fallback when geocoding fails)
+      const getDefaultCoordinates = (listName: string): { latitude: number; longitude: number; city: string } => {
+        const lower = listName.toLowerCase();
+        if (lower.includes('tokyo')) return { latitude: 35.6762, longitude: 139.6503, city: 'Tokyo' };
+        if (lower.includes('nyc') || lower.includes('new york')) return { latitude: 40.7128, longitude: -74.0060, city: 'New York' };
+        if (lower.includes('seoul')) return { latitude: 37.5665, longitude: 126.9780, city: 'Seoul' };
+        if (lower.includes('frankfurt')) return { latitude: 50.1109, longitude: 8.6821, city: 'Frankfurt' };
+        if (lower.includes('park city')) return { latitude: 40.6461, longitude: -111.4980, city: 'Park City' };
+        // Default: San Francisco
+        return { latitude: 37.7749, longitude: -122.4194, city: 'Unknown' };
+      };
+
       // Geocode places (CSV doesn't include coordinates)
+      // Using placeholder coordinates if geocoding fails
       job.stage = 'geocoding';
       if (onProgress) onProgress(job);
 
       const geocodedPlaces: RawPlace[] = [];
+      const defaultCoords = getDefaultCoordinates(listName);
+
       for (const place of rawPlaces) {
-        // Try to geocode by place name (since we don't have address in CSV)
-        const geocoded = await geocodeService.geocode(place.name);
+        let geocoded = null;
+
+        // Try to geocode, but don't fail if it doesn't work
+        try {
+          geocoded = await geocodeService.geocode(place.name);
+          if (geocoded) {
+            // Small delay to respect Nominatim rate limits
+            await new Promise(resolve => setTimeout(resolve, 1100));
+          }
+        } catch (geocodeError) {
+          console.log(`Geocoding error for ${place.name}: ${geocodeError}`);
+        }
+
         if (geocoded) {
           geocodedPlaces.push({
             ...place,
@@ -146,19 +190,53 @@ async function processSavedListsCsv(
             longitude: geocoded.longitude,
             address: geocoded.displayName,
           });
-
-          // Small delay to respect Nominatim rate limits
-          await new Promise(resolve => setTimeout(resolve, 1100));
         } else {
-          console.log(`Failed to geocode: ${place.name}`);
-          errors.push(`Failed to geocode ${place.name} in list ${listName}`);
+          // Use default coordinates + slight offset to avoid all places being in same spot
+          const offset = geocodedPlaces.length * 0.001; // Small offset
+          console.log(`Using placeholder coordinates for: ${place.name}`);
+          geocodedPlaces.push({
+            ...place,
+            latitude: defaultCoords.latitude + offset,
+            longitude: defaultCoords.longitude + offset,
+            address: `${place.name} (location approximate)`,
+          });
         }
       }
 
       if (geocodedPlaces.length === 0) {
-        console.log(`No places could be geocoded for list: ${listName}`);
-        errors.push(`No places could be geocoded for list: ${listName}`);
+        console.log(`No places to import for list: ${listName}`);
         continue;
+      }
+
+      // Calculate center coordinates from places
+      const centerLatitude = geocodedPlaces.reduce((sum, p) => sum + (p.latitude || 0), 0) / geocodedPlaces.length;
+      const centerLongitude = geocodedPlaces.reduce((sum, p) => sum + (p.longitude || 0), 0) / geocodedPlaces.length;
+
+      // Derive category from list name (simple heuristic)
+      let category = null;
+      const lowerName = listName.toLowerCase();
+      if (lowerName.includes('food') || lowerName.includes('restaurant') || lowerName.includes('cafe') || lowerName.includes('coffee')) {
+        category = 'Food & Drink';
+      } else if (lowerName.includes('travel') || lowerName.includes('visit') || lowerName.includes('trip')) {
+        category = 'Travel';
+      } else if (lowerName.includes('night') || lowerName.includes('bar') || lowerName.includes('club')) {
+        category = 'Nightlife';
+      } else if (lowerName.includes('shop') || lowerName.includes('store')) {
+        category = 'Shopping';
+      } else if (lowerName.includes('culture') || lowerName.includes('museum') || lowerName.includes('art')) {
+        category = 'Culture';
+      }
+
+      // Extract city from first place's address
+      let city = null;
+      if (geocodedPlaces[0].address) {
+        // Try to extract city from address (format varies by country)
+        // Common pattern: "Street, City, State/Province, Country"
+        const addressParts = geocodedPlaces[0].address.split(',').map(p => p.trim());
+        if (addressParts.length >= 2) {
+          // Usually city is the second part (after street)
+          city = addressParts[1];
+        }
       }
 
       // Create List in database
@@ -168,12 +246,16 @@ async function processSavedListsCsv(
       const list = await prisma.list.create({
         data: {
           creatorId: userId,
-          title: listName,
+          title: displayName, // Use user's custom name
           description: `Imported from Google Maps`,
-          isPublic: false,
-          isPaid: false,
-          price: 0,
+          isPublic: !isPaid, // Make free lists public by default
+          isPaid,
+          price,
           placeCount: geocodedPlaces.length,
+          centerLatitude,
+          centerLongitude,
+          category,
+          city,
         },
       });
 
@@ -247,7 +329,8 @@ export async function processZip(
   zipFilePath: string,
   userId: string,
   jobId: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  selectedLists?: Array<{ name: string; displayName?: string; isPaid: boolean; price: number }>
 ): Promise<ProcessResult> {
   // Initialize job tracking
   const job: ImportJob = {
@@ -291,7 +374,7 @@ export async function processZip(
 
     if (savedCsvEntries.length > 0) {
       console.log(`Found ${savedCsvEntries.length} saved lists in CSV format (NEW)`);
-      const result = await processSavedListsCsv(savedCsvEntries, userId, jobId, onProgress);
+      const result = await processSavedListsCsv(savedCsvEntries, userId, jobId, onProgress, selectedLists);
 
       // Clean up ZIP file
       fs.unlinkSync(zipFilePath);

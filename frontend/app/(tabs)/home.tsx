@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,10 +6,22 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { colors, typography, spacing, borderRadius, shadows, textStyles } from '../../src/utils/theme';
 import { Card } from '../../src/components/common/Card';
 import { Badge } from '../../src/components/common/Badge';
+import { ProgressCircle } from '../../src/components/common/ProgressCircle';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+
+  // Calculate engagement score (0-100)
+  const listsCount = user?._count?.createdLists || 0;
+  const purchasesCount = user?._count?.purchases || 0;
+  const stakesCount = user?._count?.stakes || 0;
+
+  // Simple engagement calculation: each activity type contributes up to 33.3 points
+  const listScore = Math.min(listsCount * 10, 33);
+  const purchaseScore = Math.min(purchasesCount * 5, 33);
+  const stakeScore = Math.min(stakesCount * 5, 34);
+  const totalEngagement = listScore + purchaseScore + stakeScore;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -27,28 +39,40 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Stats Cards - Clean, flat design with accent.500 icons */}
+        {/* Stats Cards - Engagement score + traditional stats */}
         <View style={styles.statsContainer}>
+          {/* Engagement ProgressCircle */}
           <Card
-            variant="interactive"
+            variant="elevated"
             padding={4}
-            style={styles.statCard}
-            onPress={() => router.push('/library')}
+            style={[styles.statCard, styles.engagementCard]}
           >
-            <Ionicons name="map" size={24} color={colors.accent[500]} />
-            <Text style={styles.statValue}>{user?._count?.createdLists || 0}</Text>
-            <Text style={styles.statLabel}>My Lists</Text>
+            <ProgressCircle
+              value={totalEngagement}
+              label="Engagement"
+              size="md"
+              segments={[
+                { color: colors.error, percentage: listScore },
+                { color: colors.warning, percentage: purchaseScore },
+                { color: colors.success, percentage: stakeScore },
+              ]}
+            />
+            <Pressable onPress={() => router.push('/library')}>
+              <Text style={styles.seeDetailsLink}>See Details</Text>
+            </Pressable>
           </Card>
 
+          {/* Purchases */}
           <Card variant="elevated" padding={4} style={styles.statCard}>
             <Ionicons name="cart" size={24} color={colors.accent[500]} />
-            <Text style={styles.statValue}>{user?._count?.purchases || 0}</Text>
+            <Text style={styles.statValue}>{purchasesCount}</Text>
             <Text style={styles.statLabel}>Purchased</Text>
           </Card>
 
+          {/* Stakes */}
           <Card variant="elevated" padding={4} style={styles.statCard}>
             <Ionicons name="trending-up" size={24} color={colors.accent[500]} />
-            <Text style={styles.statValue}>{user?._count?.stakes || 0}</Text>
+            <Text style={styles.statValue}>{stakesCount}</Text>
             <Text style={styles.statLabel}>Stakes</Text>
           </Card>
         </View>
@@ -128,6 +152,17 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     alignItems: 'center',
+  },
+  engagementCard: {
+    justifyContent: 'center',
+    paddingVertical: spacing[5], // Extra vertical padding for ProgressCircle
+  },
+  seeDetailsLink: {
+    fontFamily: typography.fonts.medium,
+    fontSize: typography.sizes.xs, // 12px
+    color: colors.accent[500],
+    marginTop: spacing[3], // 12px below ProgressCircle
+    textDecorationLine: 'underline',
   },
   statValue: {
     fontFamily: typography.fonts.bold,

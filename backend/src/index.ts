@@ -5,6 +5,7 @@ import passport from 'passport';
 import authRoutes from './api/routes/auth';
 import importRoutes from './api/routes/import';
 import listsRoutes from './api/routes/lists';
+import placesRoutes from './api/routes/places';
 import { initializePassport } from './api/auth/passport';
 
 // Load environment variables
@@ -31,6 +32,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/lists', listsRoutes);
+app.use('/api/places', placesRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

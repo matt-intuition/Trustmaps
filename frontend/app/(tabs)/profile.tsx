@@ -2,15 +2,24 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { useAuthStore } from '../../src/stores/authStore';
 import { Button } from '../../src/components/common/Button';
 import { Badge } from '../../src/components/common/Badge';
 import { Card } from '../../src/components/common/Card';
+import { Avatar } from '../../src/components/common/Avatar';
+import { ProgressCircle } from '../../src/components/common/ProgressCircle';
+import { MetadataGrid } from '../../src/components/common/MetadataGrid';
 import { colors, typography, spacing, borderRadius, textStyles } from '../../src/utils/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout, loadUser } = useAuthStore();
+
+  // Refresh user data when screen loads
+  useEffect(() => {
+    loadUser();
+  }, []);
 
   const handleLogout = () => {
     Alert.alert(
@@ -33,41 +42,49 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header - Avatar + Name + Username */}
+        {/* Header - Avatar + Name + Username + Reputation */}
         <View style={styles.header}>
-          {/* Avatar - Flat accent.500 background, 80px */}
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user?.displayName?.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          {/* Avatar Component - xl size (120px) */}
+          <Avatar
+            imageUrl={user?.profileImage || undefined}
+            initials={user?.displayName?.substring(0, 2) || '??'}
+            size="xl"
+            border="thick"
+            style={styles.avatar}
+          />
 
           <Text style={styles.displayName}>{user?.displayName}</Text>
           <Text style={styles.username}>@{user?.username}</Text>
 
-          {/* Reputation Badge */}
+          {/* Reputation ProgressCircle - replaces badge */}
           <View style={styles.reputationContainer}>
-            <Badge
-              label={`Reputation: ${user?.creatorReputation}`}
-              variant="accent"
-              icon="star"
+            <ProgressCircle
+              value={Math.min((user?.creatorReputation || 0) * 10, 100)}
+              label="Reputation"
+              size="md"
             />
           </View>
+
+          {/* Edit Profile Button */}
+          <Button
+            title="Edit Profile"
+            variant="outline"
+            onPress={() => {}}
+            style={styles.editButton}
+          />
         </View>
 
-        {/* Stats Row - 2 column grid */}
-        <Card variant="flat" padding={5} style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{user?.trustBalance}</Text>
-            <Text style={styles.statLabel}>TRUST Balance</Text>
-          </View>
-
-          <View style={styles.statDivider} />
-
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{user?.totalStaked}</Text>
-            <Text style={styles.statLabel}>Staked</Text>
-          </View>
+        {/* Stats Grid - 2x2 MetadataGrid */}
+        <Card variant="flat" padding={5} style={styles.statsCard}>
+          <MetadataGrid
+            items={[
+              { label: 'TRUST Balance', value: user?.trustBalance || 0, icon: 'diamond-outline' },
+              { label: 'Staked', value: user?.totalStaked || 0, icon: 'trending-up-outline' },
+              { label: 'My Lists', value: user?._count?.createdLists || 0, icon: 'map-outline' },
+              { label: 'Purchases', value: user?._count?.purchases || 0, icon: 'cart-outline' },
+            ]}
+            columns={2}
+          />
         </Card>
 
         {/* Menu Items - Flat cards, no shadows */}
@@ -142,20 +159,7 @@ const styles = StyleSheet.create({
     padding: spacing[6], // 24px
   },
   avatar: {
-    width: 80, // Reduced from 96px
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.accent[500], // Flat indigo
-    borderWidth: 2,
-    borderColor: colors.neutral[200],
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: spacing[4], // 16px
-  },
-  avatarText: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.sizes['2xl'], // 31px
-    color: colors.text.inverse, // White
   },
   displayName: {
     ...textStyles.h2, // 25px, bold, neutral.900
@@ -165,32 +169,15 @@ const styles = StyleSheet.create({
     marginTop: spacing[2], // 8px
   },
   reputationContainer: {
-    marginTop: spacing[3], // 12px
+    marginTop: spacing[4], // 16px
   },
-  statsRow: {
-    flexDirection: 'row',
+  editButton: {
+    marginTop: spacing[4], // 16px
+    minWidth: 140,
+  },
+  statsCard: {
     marginHorizontal: spacing[6], // 24px
     marginBottom: spacing[6], // 24px
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontFamily: typography.fonts.bold,
-    fontSize: typography.sizes.xl, // 25px
-    color: colors.text.primary, // neutral.900
-    marginBottom: spacing[1], // 4px
-  },
-  statLabel: {
-    fontFamily: typography.fonts.medium,
-    fontSize: typography.sizes.sm, // 14px
-    color: colors.text.secondary, // neutral.600
-  },
-  statDivider: {
-    width: 1,
-    height: '100%',
-    backgroundColor: colors.neutral[200],
   },
   menuSection: {
     backgroundColor: colors.surface,

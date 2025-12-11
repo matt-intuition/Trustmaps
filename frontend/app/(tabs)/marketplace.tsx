@@ -1,182 +1,197 @@
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, FlatList, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, spacing, textStyles, borderRadius } from '../../src/utils/theme';
+import { colors, typography, spacing, textStyles } from '../../src/utils/theme';
 import { Input } from '../../src/components/common/Input';
-import { Card } from '../../src/components/common/Card';
 import { Badge } from '../../src/components/common/Badge';
-import { useState } from 'react';
-
-// Mock data for marketplace lists
-const MOCK_LISTS = [
-  {
-    id: '1',
-    title: 'Best Coffee Shops in Brooklyn',
-    creator: 'Sarah Chen',
-    city: 'New York',
-    price: 5,
-    placeCount: 12,
-    coverImage: '☕',
-    totalStaked: 250,
-    category: 'Food & Drink',
-  },
-  {
-    id: '2',
-    title: 'Hidden Gems of Tokyo',
-    creator: 'Yuki Tanaka',
-    city: 'Tokyo',
-    price: 8,
-    placeCount: 25,
-    coverImage: '🗼',
-    totalStaked: 450,
-    category: 'Travel',
-  },
-  {
-    id: '3',
-    title: 'SF Michelin-Worthy Restaurants',
-    creator: 'Marcus Lee',
-    city: 'San Francisco',
-    price: 10,
-    placeCount: 18,
-    coverImage: '🍽️',
-    totalStaked: 680,
-    category: 'Food & Drink',
-  },
-  {
-    id: '4',
-    title: 'Berlin Nightlife Guide',
-    creator: 'Anna Schmidt',
-    city: 'Berlin',
-    price: 6,
-    placeCount: 15,
-    coverImage: '🎵',
-    totalStaked: 320,
-    category: 'Nightlife',
-  },
-];
+import { MarketplaceListCard, MarketplaceList } from '../../src/components/marketplace/MarketplaceListCard';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import { apiClient } from '../../src/api/client';
 
 const CATEGORIES = ['All', 'Food & Drink', 'Travel', 'Nightlife', 'Shopping', 'Culture'];
 
 export default function MarketplaceScreen() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [lists, setLists] = useState<MarketplaceList[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const filteredLists = MOCK_LISTS.filter(list => {
-    const matchesSearch = list.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         list.city.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || list.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Fetch marketplace lists
+  const fetchLists = async (pageNum: number = 1, refresh: boolean = false) => {
+    try {
+      if (pageNum === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: '20',
+        ...(selectedCategory !== 'All' && { category: selectedCategory }),
+        ...(searchQuery && { search: searchQuery }),
+      });
+
+      const response = await fetch(
+        `http://localhost:3001/api/lists/marketplace?${params}`,
+        {
+          headers: {
+            Authorization: `Bearer ${apiClient.getToken()}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch marketplace lists');
+      }
+
+      const data = await response.json();
+
+      if (refresh || pageNum === 1) {
+        setLists(data.lists);
+      } else {
+        setLists((prev) => [...prev, ...data.lists]);
+      }
+
+      setHasMore(data.pagination.hasMore);
+      setPage(pageNum);
+    } catch (error) {
+      console.error('Error fetching marketplace lists:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchLists(1);
+  }, [selectedCategory, searchQuery]);
+
+  // Refresh handler
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchLists(1, true);
+  };
+
+  // Load more handler
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchLists(page + 1);
+    }
+  };
+
+  // Handle list press
+  const handleListPress = (listId: string) => {
+    // TODO: Navigate to list detail screen
+    console.log('View list:', listId);
+    // router.push(`/list/${listId}`);
+  };
+
+  // Render empty state
+  const renderEmptyState = () => {
+    if (loading) return null;
+
+    return (
+      <View style={styles.emptyState}>
+        <Ionicons name="search-outline" size={48} color={colors.neutral[400]} />
+        <Text style={[textStyles.body, { color: colors.text.secondary, marginTop: spacing[4] }]}>
+          No lists found
+        </Text>
+        <Text style={[textStyles.bodySmall, { color: colors.text.tertiary, marginTop: spacing[2] }]}>
+          Try adjusting your search or filters
+        </Text>
+      </View>
+    );
+  };
+
+  // Render footer (loading indicator for pagination)
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color={colors.accent[500]} />
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={textStyles.h2}>Discover Lists</Text>
-          <Text style={[textStyles.bodySmall, { color: colors.text.tertiary, marginTop: spacing[2] }]}>
-            Curated city guides from trusted creators
-          </Text>
-        </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={textStyles.h2}>Discover Lists</Text>
+        <Text style={[textStyles.bodySmall, { color: colors.text.tertiary, marginTop: spacing[2] }]}>
+          Curated city guides from trusted creators
+        </Text>
+      </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Input
-            placeholder="Search lists or cities..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            leftIcon="search"
-            size="base"
-          />
-        </View>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Input
+          placeholder="Search lists or cities..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          leftIcon="search"
+          size="base"
+        />
+      </View>
 
-        {/* Category Filters */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoriesContainer}
-          contentContainerStyle={styles.categoriesContent}
-        >
-          {CATEGORIES.map((category) => (
-            <Pressable
-              key={category}
-              onPress={() => setSelectedCategory(category)}
-              style={styles.categoryButton}
-            >
-              <Badge
-                label={category}
-                variant={selectedCategory === category ? 'accent' : 'neutral'}
-              />
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        {/* Lists Grid */}
-        <View style={styles.listsGrid}>
-          {filteredLists.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="search-outline" size={48} color={colors.neutral[400]} />
-              <Text style={[textStyles.body, { color: colors.text.secondary, marginTop: spacing[4] }]}>
-                No lists found
-              </Text>
-              <Text style={[textStyles.bodySmall, { color: colors.text.tertiary, marginTop: spacing[2] }]}>
-                Try adjusting your search or filters
-              </Text>
-            </View>
-          ) : (
-            filteredLists.map((list) => (
-              <Card
-                key={list.id}
-                variant="interactive"
-                style={styles.listCard}
-                onPress={() => console.log('View list:', list.id)}
-              >
-                {/* Cover Image/Emoji */}
-                <View style={styles.listCover}>
-                  <Text style={styles.coverEmoji}>{list.coverImage}</Text>
-                </View>
-
-                {/* List Info */}
-                <View style={styles.listInfo}>
-                  <Text style={textStyles.h4} numberOfLines={2}>
-                    {list.title}
-                  </Text>
-                  <Text style={[textStyles.caption, { color: colors.text.tertiary, marginTop: spacing[1] }]}>
-                    by {list.creator}
-                  </Text>
-
-                  {/* Stats Row */}
-                  <View style={styles.statsRow}>
-                    <View style={styles.stat}>
-                      <Ionicons name="location" size={14} color={colors.neutral[500]} />
-                      <Text style={[textStyles.caption, { color: colors.text.secondary, marginLeft: spacing[1] }]}>
-                        {list.city}
-                      </Text>
-                    </View>
-                    <View style={styles.stat}>
-                      <Ionicons name="pin" size={14} color={colors.neutral[500]} />
-                      <Text style={[textStyles.caption, { color: colors.text.secondary, marginLeft: spacing[1] }]}>
-                        {list.placeCount} places
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Price & Staking Row */}
-                  <View style={styles.priceRow}>
-                    <Badge label={`${list.price} TRUST`} variant="accent" />
-                    <View style={styles.stakingInfo}>
-                      <Ionicons name="diamond" size={12} color={colors.accent[500]} />
-                      <Text style={[textStyles.caption, { color: colors.text.tertiary, marginLeft: spacing[1] }]}>
-                        {list.totalStaked} staked
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </Card>
-            ))
-          )}
-        </View>
+      {/* Category Filters */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoriesContainer}
+        contentContainerStyle={styles.categoriesContent}
+      >
+        {CATEGORIES.map((category) => (
+          <Pressable
+            key={category}
+            onPress={() => setSelectedCategory(category)}
+            style={styles.categoryButton}
+          >
+            <Badge
+              label={category}
+              variant={selectedCategory === category ? 'accent' : 'neutral'}
+            />
+          </Pressable>
+        ))}
       </ScrollView>
+
+      {/* Lists */}
+      {loading && page === 1 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.accent[500]} />
+        </View>
+      ) : (
+        <FlatList
+          data={lists}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <MarketplaceListCard list={item} onPress={handleListPress} />
+          )}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={renderEmptyState}
+          ListFooterComponent={renderFooter}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.accent[500]}
+            />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -185,9 +200,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  scrollView: {
-    flex: 1,
   },
   header: {
     paddingHorizontal: spacing[6],
@@ -207,53 +219,23 @@ const styles = StyleSheet.create({
   categoryButton: {
     marginRight: spacing[2],
   },
-  listsGrid: {
+  listContainer: {
     paddingHorizontal: spacing[6],
     paddingTop: spacing[6],
     paddingBottom: spacing[10],
   },
-  listCard: {
-    marginBottom: spacing[4],
-    padding: 0,
-    overflow: 'hidden',
-  },
-  listCover: {
-    height: 120,
-    backgroundColor: colors.accent[50],
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  coverEmoji: {
-    fontSize: 48,
-  },
-  listInfo: {
-    padding: spacing[4],
-  },
-  statsRow: {
-    flexDirection: 'row',
-    marginTop: spacing[3],
-    gap: spacing[4],
-  },
-  stat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing[3],
-    paddingTop: spacing[3],
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral[200],
-  },
-  stakingInfo: {
-    flexDirection: 'row',
     alignItems: 'center',
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing[16],
+  },
+  loadingFooter: {
+    paddingVertical: spacing[4],
+    alignItems: 'center',
   },
 });

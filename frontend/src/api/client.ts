@@ -33,6 +33,14 @@ class ApiClient {
       headers,
     });
 
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('Non-JSON response:', text.substring(0, 200));
+      throw new Error(`Server error: ${response.status} ${response.statusText}`);
+    }
+
     const data = await response.json();
 
     if (!response.ok) {
@@ -56,6 +64,33 @@ class ApiClient {
     return this.token;
   }
 
+  // Generic HTTP methods
+  async get<T = any>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'GET',
+    });
+  }
+
+  async post<T = any>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async put<T = any>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async delete<T = any>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'DELETE',
+    });
+  }
+
   // Auth endpoints
   async signup(data: SignupRequest): Promise<AuthResponse> {
     return this.request<AuthResponse>('/auth/signup', {
@@ -77,7 +112,10 @@ class ApiClient {
 
   // Import endpoints
   async uploadZip(fileOrUri: string | File, fileName: string): Promise<{
-    jobId: string;
+    fileId: string;
+    filePath: string;
+    filename: string;
+    size: number;
     message: string;
   }> {
     console.log('uploadZip called', typeof fileOrUri, fileName);
