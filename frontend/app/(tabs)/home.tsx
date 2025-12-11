@@ -2,15 +2,39 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../src/stores/authStore';
+import { apiClient } from '../../src/api/client';
 import { colors, typography, spacing, borderRadius, shadows, textStyles } from '../../src/utils/theme';
 import { Card } from '../../src/components/common/Card';
 import { Badge } from '../../src/components/common/Badge';
 import { ProgressCircle } from '../../src/components/common/ProgressCircle';
+import { Skeleton } from '../../src/components/common/Skeleton';
+
+interface RecommendedList {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  isFree: boolean;
+  price: number;
+  trustRank: number;
+  placeCount: number;
+  totalStaked: number;
+  recommendationReasons: string[];
+  creator: {
+    id: string;
+    username: string;
+    displayName: string;
+    profileImage: string | null;
+  };
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const [recommendations, setRecommendations] = useState<RecommendedList[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
 
   // Calculate engagement score (0-100)
   const listsCount = user?._count?.createdLists || 0;
@@ -22,6 +46,24 @@ export default function HomeScreen() {
   const purchaseScore = Math.min(purchasesCount * 5, 33);
   const stakeScore = Math.min(stakesCount * 5, 34);
   const totalEngagement = listScore + purchaseScore + stakeScore;
+
+  useEffect(() => {
+    loadRecommendations();
+  }, []);
+
+  const loadRecommendations = async () => {
+    try {
+      setRecommendationsLoading(true);
+      const response = await apiClient.get('/recommendations', {
+        params: { limit: 5 }
+      });
+      setRecommendations(response.recommendations);
+    } catch (error: any) {
+      console.error('Error loading recommendations:', error);
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -76,6 +118,74 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Stakes</Text>
           </Card>
         </View>
+
+        {/* Recommended for You */}
+        {recommendationsLoading ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recommended for You</Text>
+            <Skeleton variant="card" height={140} style={{ marginBottom: spacing[4] }} />
+            <Skeleton variant="card" height={140} />
+          </View>
+        ) : recommendations.length > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recommended for You</Text>
+              <Ionicons name="sparkles" size={20} color={colors.accent[500]} />
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.recommendationsScroll}
+            >
+              {recommendations.map((list) => (
+                <Pressable
+                  key={list.id}
+                  onPress={() => router.push(`/list/${list.id}` as any)}
+                  style={styles.recommendationCard}
+                >
+                  <Card variant="elevated" padding={4}>
+                    <View style={styles.recommendationContent}>
+                      <Text style={styles.recommendationTitle} numberOfLines={2}>
+                        {list.title}
+                      </Text>
+
+                      <View style={styles.recommendationCreator}>
+                        <Text style={styles.recommendationCreatorText}>
+                          by {list.creator.displayName}
+                        </Text>
+                      </View>
+
+                      <Text style={styles.recommendationReason} numberOfLines={1}>
+                        <Ionicons name="information-circle-outline" size={14} />
+                        {' '}{list.recommendationReasons[0]}
+                      </Text>
+
+                      <View style={styles.recommendationFooter}>
+                        <Badge label={list.category} variant="neutral" size="sm" />
+                        <View style={styles.recommendationStats}>
+                          <Ionicons name="location-outline" size={14} color={colors.text.tertiary} />
+                          <Text style={styles.recommendationStatText}>
+                            {list.placeCount}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {!list.isFree && (
+                        <View style={styles.recommendationPrice}>
+                          <Ionicons name="diamond-outline" size={14} color={colors.accent[500]} />
+                          <Text style={styles.recommendationPriceText}>
+                            {list.price} TRUST
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </Card>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
 
         {/* Quick Actions - Interactive cards */}
         <View style={styles.section}>
@@ -179,9 +289,71 @@ const styles = StyleSheet.create({
   section: {
     padding: spacing[6], // 24px
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginBottom: spacing[4],
+  },
   sectionTitle: {
     ...textStyles.h3, // 20px, semibold, neutral.900
-    marginBottom: spacing[4], // 16px
+  },
+  recommendationsScroll: {
+    paddingRight: spacing[6],
+    gap: spacing[4],
+  },
+  recommendationCard: {
+    width: 280,
+  },
+  recommendationContent: {
+    minHeight: 160,
+  },
+  recommendationTitle: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.sizes.base,
+    color: colors.text.primary,
+    marginBottom: spacing[2],
+    lineHeight: 22,
+  },
+  recommendationCreator: {
+    marginBottom: spacing[2],
+  },
+  recommendationCreatorText: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.sm,
+    color: colors.text.secondary,
+  },
+  recommendationReason: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.xs,
+    color: colors.accent[600],
+    marginBottom: spacing[3],
+  },
+  recommendationFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing[2],
+  },
+  recommendationStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+  },
+  recommendationStatText: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.xs,
+    color: colors.text.tertiary,
+  },
+  recommendationPrice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+  },
+  recommendationPriceText: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.sizes.sm,
+    color: colors.accent[500],
   },
   actionCard: {
     flexDirection: 'row',
