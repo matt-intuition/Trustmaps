@@ -14,6 +14,7 @@ router.use(passport.authenticate('jwt', { session: false }));
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const currentUserId = (req.user as any).id;
 
     const user = await prisma.user.findUnique({
       where: { id },
@@ -32,6 +33,8 @@ router.get('/:id', async (req: Request, res: Response) => {
             purchases: true,
             stakes: true,
             stakesReceived: true,
+            followers: true,
+            following: true,
           },
         },
       },
@@ -55,11 +58,24 @@ router.get('/:id', async (req: Request, res: Response) => {
       },
     });
 
+    // Check if current user is following this user
+    const isFollowing = await prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUserId,
+          followingId: id,
+        },
+      },
+    });
+
     res.json({
       user: {
         ...user,
         totalSales: salesData._sum.totalSales || 0,
         totalEarnings: salesData._sum.totalEarnings || 0,
+      },
+      meta: {
+        isFollowing: !!isFollowing,
       },
     });
   } catch (error) {

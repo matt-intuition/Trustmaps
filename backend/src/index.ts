@@ -11,6 +11,7 @@ import stakesRoutes from './api/routes/stakes';
 import reviewsRoutes from './api/routes/reviews';
 import exportRoutes from './api/routes/export';
 import usersRoutes from './api/routes/users';
+import followsRoutes from './api/routes/follows';
 import { initializePassport } from './api/auth/passport';
 
 // Load environment variables
@@ -45,6 +46,7 @@ app.use('/api/stakes', stakesRoutes);
 app.use('/api/reviews', reviewsRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/follows', followsRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

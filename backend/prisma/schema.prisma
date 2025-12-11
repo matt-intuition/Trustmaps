@@ -32,6 +32,8 @@ model User {
   stakesReceived     UserStake[]  @relation("Creator")
   reviews            Review[]
   savedLists         SavedList[]  // Lists user has saved (bookmarked)
+  following          Follow[]     @relation("Follower")  // Users this user follows
+  followers          Follow[]     @relation("Following") // Users following this user
 
   @@index([email])
   @@index([username])
@@ -216,4 +218,20 @@ model SavedList {
   @@index([userId])
   @@index([listId])
   @@map("saved_lists")
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String   // User who is following
+  followingId String   // User being followed
+  createdAt   DateTime @default(now())
+
+  // Relations
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId]) // User can only follow another user once
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
 }
