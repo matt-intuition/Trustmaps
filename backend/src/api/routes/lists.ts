@@ -730,4 +730,61 @@ router.post('/:id/purchase', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/lists/purchases/history
+ * Get user's purchase history
+ */
+router.get('/purchases/history', async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+
+    const purchases = await prisma.purchase.findMany({
+      where: { userId },
+      include: {
+        list: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            isFree: true,
+            price: true,
+            coverImage: true,
+            placeCount: true,
+            creator: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                profileImage: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    res.json({
+      purchases: purchases.map((p) => ({
+        id: p.id,
+        price: p.price,
+        revenueToCreator: p.revenueToCreator,
+        revenueToStakers: p.revenueToStakers,
+        revenueToProtocol: p.revenueToProtocol,
+        purchasedAt: p.createdAt,
+        list: p.list,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching purchase history:', error);
+    res.status(500).json({
+      error: 'Server error',
+      message: error instanceof Error ? error.message : 'Failed to fetch purchases',
+    });
+  }
+});
+
 export default router;

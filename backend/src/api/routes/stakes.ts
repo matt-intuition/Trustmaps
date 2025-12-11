@@ -354,6 +354,135 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/stakes/earnings - Get detailed earnings from stakes
+router.get('/earnings', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    // Get stakes on lists with earnings
+    const listStakes = await prisma.stake.findMany({
+      where: { userId },
+      include: {
+        list: {
+          select: {
+            id: true,
+            title: true,
+            coverImage: true,
+            totalSales: true,
+            totalStaked: true,
+            creator: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                profileImage: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { earnedRevenue: 'desc' }
+    });
+
+    // Calculate detailed metrics for each stake
+    const listStakesWithMetrics = listStakes.map(stake => {
+      const apr = stake.amount > 0
+        ? ((stake.earnedRevenue / stake.amount) * 100)
+        : 0;
+
+      const sharePercentage = stake.list.totalStaked > 0
+        ? ((stake.amount / stake.list.totalStaked) * 100)
+        : 0;
+
+      return {
+        id: stake.id,
+        type: 'list' as const,
+        amount: stake.amount,
+        earnedRevenue: stake.earnedRevenue,
+        apr: parseFloat(apr.toFixed(2)),
+        sharePercentage: parseFloat(sharePercentage.toFixed(2)),
+        stakedAt: stake.createdAt,
+        target: {
+          id: stake.list.id,
+          title: stake.list.title,
+          coverImage: stake.list.coverImage,
+          totalSales: stake.list.totalSales,
+          totalStaked: stake.list.totalStaked,
+          creator: stake.list.creator
+        }
+      };
+    });
+
+    // Get stakes on creators (currently no earnings on creator stakes, but include for completeness)
+    const creatorStakes = await prisma.userStake.findMany({
+      where: { stakerId: userId },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            profileImage: true,
+            creatorReputation: true,
+            totalStaked: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const creatorStakesWithMetrics = creatorStakes.map(stake => {
+      const sharePercentage = stake.creator.totalStaked > 0
+        ? ((stake.amount / stake.creator.totalStaked) * 100)
+        : 0;
+
+      return {
+        id: stake.id,
+        type: 'creator' as const,
+        amount: stake.amount,
+        earnedRevenue: 0, // Creator stakes don't earn revenue yet
+        apr: 0,
+        sharePercentage: parseFloat(sharePercentage.toFixed(2)),
+        stakedAt: stake.createdAt,
+        target: {
+          id: stake.creator.id,
+          username: stake.creator.username,
+          displayName: stake.creator.displayName,
+          profileImage: stake.creator.profileImage,
+          creatorReputation: stake.creator.creatorReputation,
+          totalStaked: stake.creator.totalStaked
+        }
+      };
+    });
+
+    // Calculate totals
+    const totalStaked = listStakes.reduce((sum, s) => sum + s.amount, 0) +
+                       creatorStakes.reduce((sum, s) => sum + s.amount, 0);
+    const totalEarned = listStakes.reduce((sum, s) => sum + s.earnedRevenue, 0);
+    const overallAPR = totalStaked > 0
+      ? ((totalEarned / totalStaked) * 100)
+      : 0;
+
+    return res.json({
+      summary: {
+        totalStaked,
+        totalEarned,
+        overallAPR: parseFloat(overallAPR.toFixed(2)),
+        activeStakes: listStakes.length + creatorStakes.length,
+        listStakesCount: listStakes.length,
+        creatorStakesCount: creatorStakes.length
+      },
+      stakes: [
+        ...listStakesWithMetrics,
+        ...creatorStakesWithMetrics
+      ].sort((a, b) => b.earnedRevenue - a.earnedRevenue)
+    });
+  } catch (error) {
+    console.error('Error fetching staking earnings:', error);
+    return res.status(500).json({ error: 'Failed to fetch staking earnings' });
+  }
+});
+
 // DELETE /api/stakes/list/:listId - Unstake from a list
 router.delete(
   '/list/:listId',

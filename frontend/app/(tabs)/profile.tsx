@@ -69,7 +69,7 @@ export default function ProfileScreen() {
           <Button
             title="Edit Profile"
             variant="outline"
-            onPress={() => {}}
+            onPress={() => router.push('/profile/edit' as any)}
             style={styles.editButton}
           />
         </View>
@@ -103,7 +103,10 @@ export default function ProfileScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/purchases/history' as any)}
+          >
             <Ionicons name="cart-outline" size={20} color={colors.neutral[600]} />
             <View style={styles.menuContent}>
               <Text style={styles.menuTitle}>Purchases</Text>
