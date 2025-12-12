@@ -126,7 +126,10 @@ export default function ProfileScreen() {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/stakes' as any)}
+          >
             <Ionicons name="trending-up-outline" size={20} color={colors.neutral[600]} />
             <View style={styles.menuContent}>
               <Text style={styles.menuTitle}>My Stakes</Text>
@@ -147,6 +150,20 @@ export default function ProfileScreen() {
               <Text style={styles.menuSubtitle}>
                 {(user as any)?._count?.following || 0} creators
               </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/discover' as any)}
+          >
+            <Ionicons name="compass-outline" size={20} color={colors.neutral[600]} />
+            <View style={styles.menuContent}>
+              <Text style={styles.menuTitle}>Discover Creators</Text>
+              <Text style={styles.menuSubtitle}>Find and follow creators</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
           </TouchableOpacity>

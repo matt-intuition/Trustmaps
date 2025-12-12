@@ -10,6 +10,7 @@ import { Card } from '../../src/components/common/Card';
 import { Badge } from '../../src/components/common/Badge';
 import { ProgressCircle } from '../../src/components/common/ProgressCircle';
 import { Skeleton } from '../../src/components/common/Skeleton';
+import { Avatar } from '../../src/components/common/Avatar';
 
 interface RecommendedList {
   id: string;
@@ -30,11 +31,29 @@ interface RecommendedList {
   };
 }
 
+interface ActivityFeedList {
+  id: string;
+  title: string;
+  category: string;
+  isFree: boolean;
+  price: number;
+  placeCount: number;
+  createdAt: string;
+  creator: {
+    id: string;
+    username: string;
+    displayName: string;
+    profileImage: string | null;
+  };
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [recommendations, setRecommendations] = useState<RecommendedList[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [activityFeed, setActivityFeed] = useState<ActivityFeedList[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
 
   // Calculate engagement score (0-100)
   const listsCount = user?._count?.createdLists || 0;
@@ -48,8 +67,23 @@ export default function HomeScreen() {
   const totalEngagement = listScore + purchaseScore + stakeScore;
 
   useEffect(() => {
+    loadActivityFeed();
     loadRecommendations();
   }, []);
+
+  const loadActivityFeed = async () => {
+    try {
+      setActivityLoading(true);
+      const response = await apiClient.get('/follows/feed', {
+        params: { limit: 10 }
+      });
+      setActivityFeed(response.lists || []);
+    } catch (error: any) {
+      console.error('Error loading activity feed:', error);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
 
   const loadRecommendations = async () => {
     try {
@@ -62,6 +96,26 @@ export default function HomeScreen() {
       console.error('Error loading recommendations:', error);
     } finally {
       setRecommendationsLoading(false);
+    }
+  };
+
+  // Helper function to format relative time
+  const formatTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const past = new Date(dateString);
+    const diffMs = now.getTime() - past.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) {
+      return `${diffMins}m ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    } else if (diffDays < 7) {
+      return `${diffDays}d ago`;
+    } else {
+      return past.toLocaleDateString();
     }
   };
 
@@ -118,6 +172,99 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Stakes</Text>
           </Card>
         </View>
+
+        {/* Recent Activity from Following */}
+        {activityLoading ? (
+          user?._count?.following && user._count.following > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <Skeleton variant="card" height={140} style={{ marginBottom: spacing[4] }} />
+              <Skeleton variant="card" height={140} />
+            </View>
+          ) : null
+        ) : activityFeed.length > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <Ionicons name="time-outline" size={20} color={colors.accent[500]} />
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.activityScroll}
+            >
+              {activityFeed.map((list) => (
+                <Pressable
+                  key={list.id}
+                  onPress={() => router.push(`/list/${list.id}` as any)}
+                  style={styles.activityCard}
+                >
+                  <Card variant="elevated" padding={4}>
+                    <View style={styles.activityContent}>
+                      {/* Creator Info - Prominent */}
+                      <View style={styles.activityCreator}>
+                        <Avatar
+                          imageUrl={list.creator.profileImage || undefined}
+                          initials={list.creator.displayName?.substring(0, 2) || '??'}
+                          size="sm"
+                        />
+                        <View style={styles.activityCreatorInfo}>
+                          <Text style={styles.activityCreatorName} numberOfLines={1}>
+                            {list.creator.displayName}
+                          </Text>
+                          <Text style={styles.activityTime}>
+                            {formatTimeAgo(list.createdAt)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* List Title */}
+                      <Text style={styles.activityTitle} numberOfLines={2}>
+                        {list.title}
+                      </Text>
+
+                      {/* Category Badge */}
+                      <Badge label={list.category} variant="neutral" size="sm" />
+
+                      {/* Footer - Place Count & Price */}
+                      <View style={styles.activityFooter}>
+                        <View style={styles.activityStats}>
+                          <Ionicons name="location-outline" size={14} color={colors.text.tertiary} />
+                          <Text style={styles.activityStatText}>
+                            {list.placeCount} places
+                          </Text>
+                        </View>
+
+                        {!list.isFree && (
+                          <View style={styles.activityPrice}>
+                            <Ionicons name="diamond-outline" size={14} color={colors.accent[500]} />
+                            <Text style={styles.activityPriceText}>
+                              {list.price}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </Card>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        ) : user?._count?.following && user._count.following > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <Ionicons name="time-outline" size={20} color={colors.accent[500]} />
+            </View>
+            <Card variant="flat" padding={6} style={styles.emptyFeedCard}>
+              <Ionicons name="hourglass-outline" size={48} color={colors.neutral[400]} />
+              <Text style={styles.emptyFeedText}>
+                No recent activity from creators you follow
+              </Text>
+            </Card>
+          </View>
+        ) : null}
 
         {/* Recommended for You */}
         {recommendationsLoading ? (
@@ -383,5 +530,77 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.sm, // 14px
     color: colors.text.secondary, // neutral.600
     lineHeight: typography.sizes.sm * typography.lineHeights.normal,
+  },
+  activityScroll: {
+    paddingRight: spacing[6],
+    gap: spacing[4],
+  },
+  activityCard: {
+    width: 260,
+  },
+  activityContent: {
+    gap: spacing[3],
+    minHeight: 160,
+  },
+  activityCreator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  activityCreatorInfo: {
+    flex: 1,
+  },
+  activityCreatorName: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.sizes.sm,
+    color: colors.text.primary,
+  },
+  activityTime: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.xs,
+    color: colors.text.tertiary,
+    marginTop: spacing[1],
+  },
+  activityTitle: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.sizes.base,
+    color: colors.text.primary,
+    lineHeight: 22,
+  },
+  activityFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  activityStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+  },
+  activityStatText: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.xs,
+    color: colors.text.tertiary,
+  },
+  activityPrice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+  },
+  activityPriceText: {
+    fontFamily: typography.fonts.semibold,
+    fontSize: typography.sizes.sm,
+    color: colors.accent[500],
+  },
+  emptyFeedCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyFeedText: {
+    fontFamily: typography.fonts.regular,
+    fontSize: typography.sizes.sm,
+    color: colors.text.secondary,
+    marginTop: spacing[3],
+    textAlign: 'center',
   },
 });

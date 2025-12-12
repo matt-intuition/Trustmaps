@@ -7,6 +7,7 @@ import { colors, typography, spacing, borderRadius } from '../../src/utils/theme
 import { TabBar } from '../../src/components/common/TabBar';
 import { Avatar } from '../../src/components/common/Avatar';
 import { Badge } from '../../src/components/common/Badge';
+import { Card } from '../../src/components/common/Card';
 import { MetadataGrid } from '../../src/components/common/MetadataGrid';
 import { Button } from '../../src/components/common/Button';
 import { Skeleton } from '../../src/components/common/Skeleton';
@@ -92,9 +93,16 @@ export default function ListDetailScreen() {
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [userStake, setUserStake] = useState<{
+    id: string;
+    amount: number;
+    earnedRevenue: number;
+    apr: number;
+  } | null>(null);
 
   useEffect(() => {
     fetchListDetail();
+    fetchUserStake();
   }, [id]);
 
   useEffect(() => {
@@ -245,6 +253,63 @@ export default function ListDetailScreen() {
     }
   };
 
+  const fetchUserStake = async () => {
+    try {
+      const response = await apiClient.get('/stakes');
+      const stake = response.listStakes?.find((s: any) => s.listId === id);
+      setUserStake(stake || null);
+    } catch (error: any) {
+      console.error('Error fetching user stake:', error);
+    }
+  };
+
+  const handleUnstake = async () => {
+    if (!userStake) return;
+
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(`Unstake ${userStake.amount} TRUST? You will receive ${userStake.amount} TRUST back plus ${userStake.earnedRevenue} TRUST in earned revenue.`)
+      : await new Promise(resolve => {
+          Alert.alert(
+            'Unstake',
+            `Unstake ${userStake.amount} TRUST? You will receive ${userStake.amount} TRUST back plus ${userStake.earnedRevenue} TRUST in earned revenue.`,
+            [
+              { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
+              { text: 'Unstake', onPress: () => resolve(true), style: 'destructive' },
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    try {
+      setActionLoading(true);
+      await apiClient.delete(`/stakes/list/${id}`);
+
+      if (Platform.OS === 'web') {
+        window.alert(`Successfully unstaked! Received ${userStake.amount + userStake.earnedRevenue} TRUST.`);
+      } else {
+        Alert.alert('Success', `Successfully unstaked! Received ${userStake.amount + userStake.earnedRevenue} TRUST.`);
+      }
+
+      await Promise.all([
+        fetchListDetail(),
+        fetchUserStake(),
+        refreshUser()
+      ]);
+    } catch (error: any) {
+      console.error('Unstake error:', error);
+      const errorMessage = error.message || 'Failed to unstake';
+
+      if (Platform.OS === 'web') {
+        window.alert(`Error: ${errorMessage}`);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const renderOverviewTab = () => {
     if (!list) return null;
 
@@ -289,6 +354,36 @@ export default function ListDetailScreen() {
             ]}
           />
         </View>
+
+        {/* User's Stake Position */}
+        {userStake && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Your Stake</Text>
+              <Badge
+                label={`${userStake.apr.toFixed(1)}% APR`}
+                variant="success"
+                icon="trending-up"
+              />
+            </View>
+            <Card variant="elevated" padding={4}>
+              <MetadataGrid
+                items={[
+                  { label: 'Staked', value: userStake.amount.toString(), icon: 'diamond-outline' },
+                  { label: 'Earned', value: userStake.earnedRevenue.toString(), icon: 'cash-outline' },
+                ]}
+                columns={2}
+              />
+              <Button
+                title="Unstake"
+                onPress={handleUnstake}
+                variant="outline"
+                loading={actionLoading}
+                style={{ marginTop: spacing[4] }}
+              />
+            </Card>
+          </View>
+        )}
 
         {/* Actions */}
         {meta && !meta.isOwner && (
@@ -717,6 +812,7 @@ export default function ListDetailScreen() {
             targetName={list.title}
             onSuccess={() => {
               fetchListDetail(); // Refresh to update stake count
+              fetchUserStake(); // Refresh user's stake position
             }}
           />
           <ExportModal
@@ -825,6 +921,12 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: spacing[6],
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing[4],
   },
   sectionTitle: {
     fontFamily: typography.fonts.semibold,

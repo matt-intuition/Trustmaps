@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Pressable, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../src/api/client';
 import { Avatar } from '../../src/components/common/Avatar';
 import { Card } from '../../src/components/common/Card';
+import { Button } from '../../src/components/common/Button';
 import { TabBar } from '../../src/components/common/TabBar';
 import { Skeleton } from '../../src/components/common/Skeleton';
 import { colors, typography, spacing, borderRadius, textStyles } from '../../src/utils/theme';
@@ -66,53 +67,160 @@ export default function FollowingScreen() {
     router.push(`/user/${userId}` as any);
   };
 
-  const renderUserCard = (user: UserProfile) => (
-    <TouchableOpacity
-      key={user.id}
-      onPress={() => handleUserPress(user.id)}
-      style={styles.userCard}
-    >
-      <Card variant="elevated" padding={0}>
-        <View style={styles.userContent}>
-          <Avatar
-            imageUrl={user.profileImage || undefined}
-            initials={user.displayName?.substring(0, 2) || '??'}
-            size="md"
-          />
+  const handleToggleFollow = async (user: UserProfile, isFollowing: boolean) => {
+    // Optimistic update
+    if (activeTab === 'following') {
+      setFollowing((prev) =>
+        prev.map((u) =>
+          u.id === user.id
+            ? {
+                ...u,
+                _count: {
+                  ...u._count,
+                  followers: isFollowing
+                    ? u._count.followers - 1
+                    : u._count.followers + 1,
+                },
+              }
+            : u
+        )
+      );
+    } else {
+      setFollowers((prev) =>
+        prev.map((u) =>
+          u.id === user.id
+            ? {
+                ...u,
+                _count: {
+                  ...u._count,
+                  followers: isFollowing
+                    ? u._count.followers - 1
+                    : u._count.followers + 1,
+                },
+              }
+            : u
+        )
+      );
+    }
 
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{user.displayName}</Text>
-            <Text style={styles.userUsername}>@{user.username}</Text>
+    try {
+      if (isFollowing) {
+        await apiClient.delete(`/follows/${user.id}`);
+        // Remove from following list on successful unfollow
+        if (activeTab === 'following') {
+          setFollowing((prev) => prev.filter((u) => u.id !== user.id));
+        }
+      } else {
+        await apiClient.post(`/follows/${user.id}`);
+      }
+    } catch (error: any) {
+      console.error('Error toggling follow:', error);
 
-            {user.bio && (
-              <Text style={styles.userBio} numberOfLines={2}>
-                {user.bio}
-              </Text>
-            )}
+      // Revert optimistic update on error
+      if (activeTab === 'following') {
+        setFollowing((prev) =>
+          prev.map((u) =>
+            u.id === user.id
+              ? {
+                  ...u,
+                  _count: {
+                    ...u._count,
+                    followers: isFollowing
+                      ? u._count.followers + 1
+                      : u._count.followers - 1,
+                  },
+                }
+              : u
+          )
+        );
+      } else {
+        setFollowers((prev) =>
+          prev.map((u) =>
+            u.id === user.id
+              ? {
+                  ...u,
+                  _count: {
+                    ...u._count,
+                    followers: isFollowing
+                      ? u._count.followers + 1
+                      : u._count.followers - 1,
+                  },
+                }
+              : u
+          )
+        );
+      }
 
-            <View style={styles.userStats}>
-              <View style={styles.statItem}>
-                <Ionicons name="map-outline" size={14} color={colors.text.tertiary} />
-                <Text style={styles.statText}>{user._count.createdLists} lists</Text>
+      if (Platform.OS === 'web') {
+        window.alert(`Error: ${error.message || 'Failed to update follow status'}`);
+      } else {
+        Alert.alert('Error', error.message || 'Failed to update follow status');
+      }
+    }
+  };
+
+  const renderUserCard = (user: UserProfile) => {
+    const isFollowing = activeTab === 'following';
+
+    return (
+      <Pressable
+        key={user.id}
+        onPress={() => handleUserPress(user.id)}
+        style={({ pressed }) => [
+          styles.userCard,
+          pressed && styles.userCardPressed,
+        ]}
+      >
+        <Card variant="elevated" padding={0}>
+          <View style={styles.userContent}>
+            <Pressable onPress={() => handleUserPress(user.id)} style={styles.userMain}>
+              <Avatar
+                imageUrl={user.profileImage || undefined}
+                initials={user.displayName?.substring(0, 2) || '??'}
+                size="md"
+              />
+
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>{user.displayName}</Text>
+                <Text style={styles.userUsername}>@{user.username}</Text>
+
+                {user.bio && (
+                  <Text style={styles.userBio} numberOfLines={2}>
+                    {user.bio}
+                  </Text>
+                )}
+
+                <View style={styles.userStats}>
+                  <View style={styles.statItem}>
+                    <Ionicons name="map-outline" size={14} color={colors.text.tertiary} />
+                    <Text style={styles.statText}>{user._count.createdLists} lists</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Ionicons name="people-outline" size={14} color={colors.text.tertiary} />
+                    <Text style={styles.statText}>{user._count.followers} followers</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Ionicons name="star-outline" size={14} color={colors.text.tertiary} />
+                    <Text style={styles.statText}>
+                      {user.creatorReputation.toFixed(1)} rep
+                    </Text>
+                  </View>
+                </View>
               </View>
-              <View style={styles.statItem}>
-                <Ionicons name="people-outline" size={14} color={colors.text.tertiary} />
-                <Text style={styles.statText}>{user._count.followers} followers</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Ionicons name="star-outline" size={14} color={colors.text.tertiary} />
-                <Text style={styles.statText}>
-                  {user.creatorReputation.toFixed(1)} rep
-                </Text>
-              </View>
-            </View>
+            </Pressable>
+
+            <Button
+              title={isFollowing ? 'Following' : 'Follow'}
+              variant={isFollowing ? 'outline' : 'primary'}
+              size="small"
+              onPress={() => handleToggleFollow(user, isFollowing)}
+              style={styles.followButton}
+            />
           </View>
-
-          <Ionicons name="chevron-forward" size={20} color={colors.neutral[400]} />
-        </View>
-      </Card>
-    </TouchableOpacity>
-  );
+        </Card>
+      </Pressable>
+    );
+  };
 
   const renderContent = () => {
     const users = activeTab === 'following' ? following : followers;
@@ -146,9 +254,9 @@ export default function FollowingScreen() {
           {activeTab === 'following' && (
             <TouchableOpacity
               style={styles.exploreButton}
-              onPress={() => router.push('/(tabs)/marketplace')}
+              onPress={() => router.push('/discover' as any)}
             >
-              <Text style={styles.exploreButtonText}>Explore Creators</Text>
+              <Text style={styles.exploreButtonText}>Discover Creators</Text>
               <Ionicons name="arrow-forward" size={20} color={colors.accent[500]} />
             </TouchableOpacity>
           )}
@@ -298,5 +406,17 @@ const styles = StyleSheet.create({
     fontFamily: typography.fonts.regular,
     fontSize: typography.sizes.xs,
     color: colors.text.tertiary,
+  },
+  userCardPressed: {
+    opacity: 0.7,
+  },
+  userMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  followButton: {
+    minWidth: 90,
   },
 });
