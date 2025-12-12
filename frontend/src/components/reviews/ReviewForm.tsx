@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, Pressable } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, Pressable, Platform } from 'react-native';
 import { StarRating } from '../common/StarRating';
 import { colors, spacing, borderRadius, typography, textStyles, shadows } from '../../utils/theme';
 import apiClient from '../../api/client';
@@ -28,7 +28,11 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
   const handleSubmit = async () => {
     if (!isValid) {
-      Alert.alert('Error', 'Please select a rating');
+      if (Platform.OS === 'web') {
+        window.alert('Please select a rating');
+      } else {
+        Alert.alert('Error', 'Please select a rating');
+      }
       return;
     }
 
@@ -39,10 +43,12 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
         comment: comment.trim() || undefined,
       });
 
-      Alert.alert(
-        'Success',
-        isEditing ? 'Review updated successfully' : 'Review submitted successfully'
-      );
+      const successMessage = isEditing ? 'Review updated successfully' : 'Review submitted successfully';
+      if (Platform.OS === 'web') {
+        window.alert(successMessage);
+      } else {
+        Alert.alert('Success', successMessage);
+      }
 
       if (!isEditing) {
         // Clear form for new reviews
@@ -52,10 +58,12 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
       onReviewSubmitted?.();
     } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error.response?.data?.error || 'Failed to submit review'
-      );
+      const errorMessage = error.response?.data?.error || 'Failed to submit review';
+      if (Platform.OS === 'web') {
+        window.alert(`Error: ${errorMessage}`);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
     } finally {
       setLoading(false);
     }

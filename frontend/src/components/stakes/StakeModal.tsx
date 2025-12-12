@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, Platform } from 'react-native';
 import { Modal } from '../common/Modal';
 import { colors, spacing, borderRadius, typography, textStyles } from '../../utils/theme';
 import { useAuthStore } from '../../stores/authStore';
@@ -45,19 +45,26 @@ export const StakeModal: React.FC<StakeModalProps> = ({
       // Refresh user balance
       await refreshUser();
 
-      Alert.alert(
-        'Success',
-        `Staked ${amountNumber} TRUST on ${targetName}`,
-        [{ text: 'OK', onPress: onClose }]
-      );
+      if (Platform.OS === 'web') {
+        window.alert(`Staked ${amountNumber} TRUST on ${targetName}`);
+        onClose();
+      } else {
+        Alert.alert(
+          'Success',
+          `Staked ${amountNumber} TRUST on ${targetName}`,
+          [{ text: 'OK', onPress: onClose }]
+        );
+      }
 
       onSuccess?.();
       setAmount('');
     } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error.response?.data?.error || 'Failed to stake TRUST'
-      );
+      const errorMessage = error.response?.data?.error || 'Failed to stake TRUST';
+      if (Platform.OS === 'web') {
+        window.alert(`Error: ${errorMessage}`);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
     } finally {
       setLoading(false);
     }
