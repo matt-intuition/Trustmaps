@@ -37,8 +37,8 @@ export const StakeModal: React.FC<StakeModalProps> = ({
     try {
       const endpoint =
         targetType === 'list'
-          ? `/api/stakes/list/${targetId}`
-          : `/api/stakes/user/${targetId}`;
+          ? `/stakes/list/${targetId}`
+          : `/stakes/user/${targetId}`;
 
       await apiClient.post(endpoint, { amount: amountNumber });
 

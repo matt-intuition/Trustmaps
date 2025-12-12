@@ -34,7 +34,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
     setLoading(true);
     try {
-      await apiClient.post(`/api/reviews/list/${listId}`, {
+      await apiClient.post(`/reviews/list/${listId}`, {
         rating,
         comment: comment.trim() || undefined,
       });
