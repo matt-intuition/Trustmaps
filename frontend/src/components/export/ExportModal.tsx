@@ -4,7 +4,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Modal } from '../common/Modal';
 import { colors, spacing, borderRadius, typography, textStyles } from '../../utils/theme';
-import apiClient from '../../api/client';
+import { apiClient } from '../../api/client';
 
 interface ExportModalProps {
   visible: boolean;
