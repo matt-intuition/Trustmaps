@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet, Alert, Platform } from 'react-native
 import { Modal } from '../common/Modal';
 import { colors, spacing, borderRadius, typography, textStyles } from '../../utils/theme';
 import { useAuthStore } from '../../stores/authStore';
-import apiClient from '../../api/client';
+import { apiClient } from '../../api/client';
 
 interface StakeModalProps {
   visible: boolean;

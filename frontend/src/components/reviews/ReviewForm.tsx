@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert, Pressable, Platform } from 'react-native';
 import { StarRating } from '../common/StarRating';
 import { colors, spacing, borderRadius, typography, textStyles, shadows } from '../../utils/theme';
-import apiClient from '../../api/client';
+import { apiClient } from '../../api/client';
 
 interface ReviewFormProps {
   listId: string;
