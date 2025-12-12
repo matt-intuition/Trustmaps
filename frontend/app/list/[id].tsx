@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -120,7 +120,12 @@ export default function ListDetailScreen() {
       console.error('[ListDetail] Full error object:', JSON.stringify(error, null, 2));
       const errorMessage = error.message || 'Failed to load list';
       setError(errorMessage);
-      Alert.alert('Error', errorMessage);
+
+      if (Platform.OS === 'web') {
+        window.alert(`Error: ${errorMessage}`);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -134,14 +139,30 @@ export default function ListDetailScreen() {
       if (meta.isSaved) {
         await apiClient.delete(`/lists/${id}/save`);
         setMeta({ ...meta, isSaved: false });
-        Alert.alert('Success', 'List removed from saved');
+
+        if (Platform.OS === 'web') {
+          window.alert('List removed from saved');
+        } else {
+          Alert.alert('Success', 'List removed from saved');
+        }
       } else {
         await apiClient.post(`/lists/${id}/save`);
         setMeta({ ...meta, isSaved: true });
-        Alert.alert('Success', 'List saved successfully');
+
+        if (Platform.OS === 'web') {
+          window.alert('List saved successfully');
+        } else {
+          Alert.alert('Success', 'List saved successfully');
+        }
       }
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to save list');
+      const errorMessage = error.response?.data?.message || 'Failed to save list';
+
+      if (Platform.OS === 'web') {
+        window.alert(`Error: ${errorMessage}`);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
     } finally {
       setActionLoading(false);
     }
@@ -152,37 +173,63 @@ export default function ListDetailScreen() {
 
     // Safety check: don't allow owners to purchase their own lists
     if (meta.isOwner) {
-      Alert.alert('Error', 'You cannot purchase your own list');
+      if (Platform.OS === 'web') {
+        window.alert('You cannot purchase your own list');
+      } else {
+        Alert.alert('Error', 'You cannot purchase your own list');
+      }
       return;
     }
 
-    Alert.alert(
-      'Purchase List',
-      `Purchase "${list.title}" for ${list.price} TRUST tokens?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Purchase',
-          onPress: async () => {
-            try {
-              setActionLoading(true);
-              const response = await apiClient.post(`/lists/${id}/purchase`);
-              Alert.alert('Success', 'List purchased successfully!');
-              // Refresh both list detail (to update meta.hasAccess) and user balance
-              await Promise.all([
-                fetchListDetail(),
-                refreshUser()
-              ]);
-            } catch (error: any) {
-              console.error('Purchase error:', error);
-              Alert.alert('Error', error.response?.data?.message || error.message || 'Purchase failed');
-            } finally {
-              setActionLoading(false);
-            }
+    const executePurchase = async () => {
+      try {
+        setActionLoading(true);
+        const response = await apiClient.post(`/lists/${id}/purchase`);
+
+        if (Platform.OS === 'web') {
+          window.alert('List purchased successfully!');
+        } else {
+          Alert.alert('Success', 'List purchased successfully!');
+        }
+
+        // Refresh both list detail (to update meta.hasAccess) and user balance
+        await Promise.all([
+          fetchListDetail(),
+          refreshUser()
+        ]);
+      } catch (error: any) {
+        console.error('Purchase error:', error);
+        const errorMessage = error.response?.data?.message || error.message || 'Purchase failed';
+
+        if (Platform.OS === 'web') {
+          window.alert(`Error: ${errorMessage}`);
+        } else {
+          Alert.alert('Error', errorMessage);
+        }
+      } finally {
+        setActionLoading(false);
+      }
+    };
+
+    // Cross-platform confirmation
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(`Purchase "${list.title}" for ${list.price} TRUST tokens?`);
+      if (confirmed) {
+        await executePurchase();
+      }
+    } else {
+      Alert.alert(
+        'Purchase List',
+        `Purchase "${list.title}" for ${list.price} TRUST tokens?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Purchase',
+            onPress: executePurchase,
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const fetchReviews = async () => {
