@@ -59,7 +59,8 @@ export const StakeModal: React.FC<StakeModalProps> = ({
       onSuccess?.();
       setAmount('');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Failed to stake TRUST';
+      console.error('Stake submission error:', error);
+      const errorMessage = error.message || 'Failed to stake TRUST';
       if (Platform.OS === 'web') {
         window.alert(`Error: ${errorMessage}`);
       } else {

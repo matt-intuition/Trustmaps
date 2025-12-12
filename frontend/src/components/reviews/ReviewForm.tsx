@@ -58,7 +58,8 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({
 
       onReviewSubmitted?.();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 'Failed to submit review';
+      console.error('Review submission error:', error);
+      const errorMessage = error.message || 'Failed to submit review';
       if (Platform.OS === 'web') {
         window.alert(`Error: ${errorMessage}`);
       } else {

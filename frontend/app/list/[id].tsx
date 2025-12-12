@@ -156,7 +156,8 @@ export default function ListDetailScreen() {
         }
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Failed to save list';
+      console.error('Save list error:', error);
+      const errorMessage = error.message || 'Failed to save list';
 
       if (Platform.OS === 'web') {
         window.alert(`Error: ${errorMessage}`);
@@ -199,7 +200,7 @@ export default function ListDetailScreen() {
         ]);
       } catch (error: any) {
         console.error('Purchase error:', error);
-        const errorMessage = error.response?.data?.message || error.message || 'Purchase failed';
+        const errorMessage = error.message || 'Purchase failed';
 
         if (Platform.OS === 'web') {
           window.alert(`Error: ${errorMessage}`);
